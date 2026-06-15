@@ -15,6 +15,19 @@ interface Shape {
   options: unknown;
 }
 
+interface PlayerState {
+  id: string;
+  x: number;
+  y: number;
+  moving: boolean;
+  avatar: Shape[];
+}
+
+interface SocketAttachment {
+  connectionId: string;
+  playerId?: string;
+}
+
 // Client -> Server messages
 interface AddMessage {
   type: 'add';
@@ -35,16 +48,32 @@ interface ReplaceMessage {
 interface ClearMessage {
   type: 'clear';
 }
+interface PlayerSetMessage {
+  type: 'player-set';
+  player: PlayerState;
+}
+interface PlayerMoveMessage {
+  type: 'player-move';
+  id: string;
+  x: number;
+  y: number;
+  moving: boolean;
+}
 
 // Server -> Client messages
 interface SyncMessage {
   type: 'sync';
   shapes: Shape[];
+  players: PlayerState[];
   count: number;
 }
 interface CountMessage {
   type: 'count';
   count: number;
+}
+interface PlayerRemoveMessage {
+  type: 'player-remove';
+  id: string;
 }
 
 type ClientMessage =
@@ -52,7 +81,9 @@ type ClientMessage =
   | UpdateMessage
   | RemoveMessage
   | ReplaceMessage
-  | ClearMessage;
+  | ClearMessage
+  | PlayerSetMessage
+  | PlayerMoveMessage;
 type ServerMessage =
   | SyncMessage
   | AddMessage
@@ -60,7 +91,10 @@ type ServerMessage =
   | RemoveMessage
   | ReplaceMessage
   | ClearMessage
-  | CountMessage;
+  | CountMessage
+  | PlayerSetMessage
+  | PlayerMoveMessage
+  | PlayerRemoveMessage;
 
 // Shape types the renderer understands. Anything else is rejected.
 const SHAPE_TYPES = new Set([
@@ -74,6 +108,8 @@ const SHAPE_TYPES = new Set([
 
 // Guard rails to keep a room within free-tier limits.
 const MAX_SHAPES = 5000;
+const MAX_AVATAR_SHAPES = 250;
+const MAX_PLAYER_COORD = 1_000_000;
 
 /**
  * Durable Object: CanvasRoom
@@ -90,6 +126,13 @@ export class CanvasRoom implements DurableObject {
       CREATE TABLE IF NOT EXISTS shapes (
         id TEXT PRIMARY KEY,
         ord INTEGER NOT NULL,
+        data TEXT NOT NULL
+      )
+    `);
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS players (
+        id TEXT PRIMARY KEY,
+        connection_id TEXT NOT NULL,
         data TEXT NOT NULL
       )
     `);
@@ -111,11 +154,13 @@ export class CanvasRoom implements DurableObject {
 
       // Accept the WebSocket using the Hibernation API.
       this.state.acceptWebSocket(server);
+      this.setSocketAttachment(server, { connectionId: crypto.randomUUID() });
 
       // Send full state sync immediately.
       const syncMsg: SyncMessage = {
         type: 'sync',
         shapes: this.getAllShapes(),
+        players: this.getAllPlayers(),
         count: this.state.getWebSockets().length,
       };
       server.send(JSON.stringify(syncMsg));
@@ -175,13 +220,43 @@ export class CanvasRoom implements DurableObject {
         this.broadcastExcept(ws, { type: 'clear' });
         return;
       }
+
+      case 'player-set': {
+        const player = this.sanitizePlayer(data.player);
+        if (!player) return;
+        const attachment = this.getSocketAttachment(ws);
+        this.setSocketAttachment(ws, { ...attachment, playerId: player.id });
+        this.upsertPlayer(player, attachment.connectionId);
+        this.broadcastExcept(ws, { type: 'player-set', player });
+        return;
+      }
+
+      case 'player-move': {
+        const move = this.sanitizePlayerMove(data);
+        if (!move) return;
+        const attachment = this.getSocketAttachment(ws);
+        this.setSocketAttachment(ws, { ...attachment, playerId: move.id });
+        const player = this.mergePlayerMove(move);
+        this.upsertPlayer(player, attachment.connectionId);
+        this.broadcastExcept(ws, move);
+        return;
+      }
     }
   }
 
   /**
    * WebSocket close handler — refresh presence for everyone still connected.
    */
-  async webSocketClose(): Promise<void> {
+  async webSocketClose(ws: WebSocket): Promise<void> {
+    const attachment = this.getSocketAttachment(ws);
+    if (attachment.playerId) {
+      this.sql.exec(
+        `DELETE FROM players WHERE id = ? AND connection_id = ?`,
+        attachment.playerId,
+        attachment.connectionId
+      );
+      this.broadcastAll({ type: 'player-remove', id: attachment.playerId });
+    }
     this.broadcastCount();
   }
 
@@ -199,6 +274,52 @@ export class CanvasRoom implements DurableObject {
     if (!s.options || typeof s.options !== 'object') return null;
 
     return { id: s.id, type: s.type, geom: s.geom, options: s.options };
+  }
+
+  private sanitizePlayer(player: unknown): PlayerState | null {
+    if (!player || typeof player !== 'object') return null;
+    const p = player as Record<string, unknown>;
+    const move = this.sanitizePlayerMove({
+      type: 'player-move',
+      id: p.id,
+      x: p.x,
+      y: p.y,
+      moving: p.moving,
+    });
+    if (!move) return null;
+    if (!Array.isArray(p.avatar)) return null;
+
+    const avatar = p.avatar
+      .map((shape) => this.sanitizeShape(shape))
+      .filter((shape): shape is Shape => shape !== null)
+      .slice(0, MAX_AVATAR_SHAPES);
+
+    return {
+      id: move.id,
+      x: move.x,
+      y: move.y,
+      moving: move.moving,
+      avatar,
+    };
+  }
+
+  private sanitizePlayerMove(message: unknown): PlayerMoveMessage | null {
+    if (!message || typeof message !== 'object') return null;
+    const m = message as Record<string, unknown>;
+    if (typeof m.id !== 'string' || m.id.length === 0 || m.id.length > 128) return null;
+
+    const x = Number(m.x);
+    const y = Number(m.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    if (Math.abs(x) > MAX_PLAYER_COORD || Math.abs(y) > MAX_PLAYER_COORD) return null;
+
+    return {
+      type: 'player-move',
+      id: m.id,
+      x,
+      y,
+      moving: Boolean(m.moving),
+    };
   }
 
   private shapeCount(): number {
@@ -265,6 +386,85 @@ export class CanvasRoom implements DurableObject {
       }
     }
     return shapes;
+  }
+
+  private getAllPlayers(): PlayerState[] {
+    const players: PlayerState[] = [];
+    const cursor = this.sql.exec<{ data: string }>(`SELECT data FROM players ORDER BY id ASC`);
+    for (const row of cursor) {
+      try {
+        const player = this.sanitizePlayer(JSON.parse(row.data));
+        if (player) players.push(player);
+      } catch {
+        // Skip corrupt rows.
+      }
+    }
+    return players;
+  }
+
+  private getPlayer(id: string): PlayerState | null {
+    const cursor = this.sql.exec<{ data: string }>(`SELECT data FROM players WHERE id = ?`, id);
+    for (const row of cursor) {
+      try {
+        return this.sanitizePlayer(JSON.parse(row.data));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private mergePlayerMove(move: PlayerMoveMessage): PlayerState {
+    const existing = this.getPlayer(move.id);
+    return {
+      id: move.id,
+      x: move.x,
+      y: move.y,
+      moving: move.moving,
+      avatar: existing?.avatar || [],
+    };
+  }
+
+  private upsertPlayer(player: PlayerState, connectionId: string): void {
+    const data = JSON.stringify(player);
+    this.sql.exec(
+      `
+        INSERT INTO players (id, connection_id, data)
+        VALUES (?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          connection_id = excluded.connection_id,
+          data = excluded.data
+      `,
+      player.id,
+      connectionId,
+      data
+    );
+  }
+
+  private getSocketAttachment(ws: WebSocket): SocketAttachment {
+    const fallback = { connectionId: crypto.randomUUID() };
+    const api = ws as WebSocket & {
+      deserializeAttachment?: () => SocketAttachment | undefined;
+    };
+    return api.deserializeAttachment?.() || fallback;
+  }
+
+  private setSocketAttachment(ws: WebSocket, attachment: SocketAttachment): void {
+    const api = ws as WebSocket & {
+      serializeAttachment?: (value: SocketAttachment) => void;
+    };
+    api.serializeAttachment?.(attachment);
+  }
+
+  private broadcastAll(msg: ServerMessage): void {
+    const json = JSON.stringify(msg);
+    for (const ws of this.state.getWebSockets()) {
+      try {
+        ws.send(json);
+      } catch {
+        // Socket may be closing; ignore.
+      }
+    }
   }
 
   /**
