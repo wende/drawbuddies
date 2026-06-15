@@ -282,7 +282,6 @@ shape on every client.
 │   └── index.html        # The rough.js collaborative drawing client
 ├── docs/
 │   └── rough-canvas-multiplayer.md   # design notes on the pixel→shape conversion
-├── rough-drawing-playground-index.html  # original standalone playground (reference)
 ├── wrangler.jsonc        # Cloudflare config (DO binding, migration, assets)
 ├── tsconfig.json
 └── package.json

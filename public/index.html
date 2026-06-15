@@ -382,8 +382,13 @@
         return Number.isFinite(n) ? n : fallback;
       }
 
+      // Round to one decimal — keeps geometry compact on the wire and in storage.
+      function round1(n) {
+        return Math.round(n * 10) / 10;
+      }
+
       function roundPoint(point) {
-        return [Math.round(point[0] * 10) / 10, Math.round(point[1] * 10) / 10];
+        return [round1(point[0]), round1(point[1])];
       }
 
       function currentOptions(seed = newSeed()) {
@@ -602,10 +607,10 @@
           id: newId(),
           type,
           geom: {
-            x1: Math.round(start.x * 10) / 10,
-            y1: Math.round(start.y * 10) / 10,
-            x2: Math.round(end.x * 10) / 10,
-            y2: Math.round(end.y * 10) / 10
+            x1: round1(start.x),
+            y1: round1(start.y),
+            x2: round1(end.x),
+            y2: round1(end.y)
           },
           options: { ...options },
           drawable: null
@@ -620,21 +625,38 @@
         return { x, y, width, height };
       }
 
-      function buildDrawable(shape) {
-        const opts = roughOptions(shape.options, shape.type);
+      // rough.js curve config for the two freehand shape types. Roughness and bowing
+      // are capped so long strokes stay legible; the rest is constant per type.
+      const CURVE_RENDER = { maxRoughness: 0.85, maxBowing: 0.7, curveFitting: 0.82, curveTightness: 0.18 };
+      const SMART_RENDER = { maxRoughness: 0.9, maxBowing: 0.8, curveFitting: 0.85, curveTightness: 0.15 };
 
-        if (shape.type === "text") {
-          return null;
-        }
+      function curveOpts(opts, cfg) {
+        return {
+          ...opts,
+          fill: undefined,
+          fillStyle: undefined,
+          roughness: Math.min(opts.roughness, cfg.maxRoughness),
+          bowing: Math.min(opts.bowing, cfg.maxBowing),
+          curveFitting: cfg.curveFitting,
+          curveTightness: cfg.curveTightness
+        };
+      }
+
+      // Build a rough.js shape with `factory` — the rough generator (canvas) or
+      // rough.svg (export); both share the rectangle/ellipse/line/curve API. Text is
+      // handled by the callers; every other type routes through here so the canvas
+      // and SVG renderers can never drift apart.
+      function buildRoughShape(factory, shape) {
+        const opts = roughOptions(shape.options, shape.type);
 
         if (shape.type === "rectangle") {
           const box = normalizedBox(shape.geom);
-          return gen.rectangle(box.x, box.y, box.width, box.height, opts);
+          return factory.rectangle(box.x, box.y, box.width, box.height, opts);
         }
 
         if (shape.type === "ellipse") {
           const box = normalizedBox(shape.geom);
-          return gen.ellipse(
+          return factory.ellipse(
             box.x + box.width / 2,
             box.y + box.height / 2,
             box.width,
@@ -645,40 +667,26 @@
 
         if (shape.type === "line") {
           const g = shape.geom;
-          return gen.line(g.x1, g.y1, g.x2, g.y2, opts);
+          return factory.line(g.x1, g.y1, g.x2, g.y2, opts);
         }
 
         if (shape.type === "curve") {
           const points = curveRenderablePoints(shape.geom.points);
           if (points.length < 2) return null;
-
-          return gen.curve(points, {
-            ...opts,
-            fill: undefined,
-            fillStyle: undefined,
-            roughness: Math.min(opts.roughness, 0.85),
-            bowing: Math.min(opts.bowing, 0.7),
-            curveFitting: 0.82,
-            curveTightness: 0.18
-          });
+          return factory.curve(points, curveOpts(opts, CURVE_RENDER));
         }
 
         if (shape.type === "smart") {
           const points = freehandRenderablePoints(shape.geom.points);
           if (points.length < 2) return null;
-
-          return gen.curve(points, {
-            ...opts,
-            fill: undefined,
-            fillStyle: undefined,
-            roughness: Math.min(opts.roughness, 0.9),
-            bowing: Math.min(opts.bowing, 0.8),
-            curveFitting: 0.85,
-            curveTightness: 0.15
-          });
+          return factory.curve(points, curveOpts(opts, SMART_RENDER));
         }
 
         return null;
+      }
+
+      function buildDrawable(shape) {
+        return shape.type === "text" ? null : buildRoughShape(gen, shape);
       }
 
       function isMeaningful(shape) {
@@ -905,10 +913,10 @@
           return {
             type: "line",
             geom: {
-              x1: Math.round(start[0] * 10) / 10,
-              y1: Math.round(start[1] * 10) / 10,
-              x2: Math.round(end[0] * 10) / 10,
-              y2: Math.round(end[1] * 10) / 10
+              x1: round1(start[0]),
+              y1: round1(start[1]),
+              x2: round1(end[0]),
+              y2: round1(end[1])
             }
           };
         }
@@ -1073,10 +1081,10 @@
           return {
             type: "rectangle",
             geom: {
-              x1: Math.round(minX * 10) / 10,
-              y1: Math.round(minY * 10) / 10,
-              x2: Math.round(maxX * 10) / 10,
-              y2: Math.round(maxY * 10) / 10
+              x1: round1(minX),
+              y1: round1(minY),
+              x2: round1(maxX),
+              y2: round1(maxY)
             }
           };
         }
@@ -1126,10 +1134,10 @@
           return {
             type: "ellipse",
             geom: {
-              x1: Math.round(minX * 10) / 10,
-              y1: Math.round(minY * 10) / 10,
-              x2: Math.round(maxX * 10) / 10,
-              y2: Math.round(maxY * 10) / 10
+              x1: round1(minX),
+              y1: round1(minY),
+              x2: round1(maxX),
+              y2: round1(maxY)
             }
           };
         }
@@ -1595,13 +1603,15 @@
         }
       }
 
+      // Deep clone plain shape data (geom/options are JSON-safe).
+      function clone(value) {
+        return typeof structuredClone === "function"
+          ? structuredClone(value)
+          : JSON.parse(JSON.stringify(value));
+      }
+
       function cloneShapeData(shape) {
-        return {
-          id: shape.id,
-          type: shape.type,
-          geom: JSON.parse(JSON.stringify(shape.geom)),
-          options: JSON.parse(JSON.stringify(shape.options))
-        };
+        return clone(serializeShape(shape));
       }
 
       function snapshotShapes() {
@@ -1621,16 +1631,22 @@
         return shape;
       }
 
+      // Turn raw shape data (from storage, the network, or a history snapshot) into
+      // hydrated, drawable shapes, dropping anything malformed or insignificant.
+      function hydrateShapeList(list) {
+        if (!Array.isArray(list)) return [];
+        const out = [];
+        for (const item of list) {
+          if (!item || !item.type || !item.geom || !item.options) continue;
+          const shape = hydrateShape(item);
+          if (isMeaningful(shape)) out.push(shape);
+        }
+        return out;
+      }
+
       function restoreSnapshot(snapshot) {
         shapes.length = 0;
-
-        for (const shapeData of snapshot) {
-          const shape = hydrateShape(shapeData);
-          if (isMeaningful(shape)) {
-            shapes.push(shape);
-          }
-        }
-
+        shapes.push(...hydrateShapeList(snapshot));
         save();
         redraw();
       }
@@ -1647,19 +1663,7 @@
           const raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return;
 
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) return;
-
-          for (const item of parsed) {
-            if (!item || !item.type || !item.geom || !item.options) continue;
-
-            const shape = hydrateShape(item);
-
-            if (isMeaningful(shape)) {
-              shapes.push(shape);
-            }
-          }
-
+          shapes.push(...hydrateShapeList(JSON.parse(raw)));
           historyStack.length = 0;
         } catch {
           // Corrupt saved data should not break the canvas.
@@ -1754,6 +1758,12 @@
         };
       })();
 
+      // Persist locally and repaint after applying a remote op.
+      function commitLocal() {
+        save();
+        redraw();
+      }
+
       // Apply an incoming add/update: replace the shape with this id, or append.
       function applyRemoteUpsert(shapeData) {
         if (!shapeData || typeof shapeData.id !== "string") return;
@@ -1766,8 +1776,7 @@
         } else {
           shapes.push(shape);
         }
-        save();
-        redraw();
+        commitLocal();
       }
 
       function applyRemoteRemove(id) {
@@ -1776,31 +1785,20 @@
         if (index < 0) return;
         shapes.splice(index, 1);
         selectedIds = selectedIds.filter((sid) => sid !== id);
-        save();
-        redraw();
+        commitLocal();
       }
 
       function applyRemoteReplace(list) {
         shapes.length = 0;
-        if (Array.isArray(list)) {
-          for (const item of list) {
-            if (!item || !item.type || !item.geom || !item.options) continue;
-            const shape = hydrateShape(item);
-            if (isMeaningful(shape)) {
-              shapes.push(shape);
-            }
-          }
-        }
+        shapes.push(...hydrateShapeList(list));
         clearSelection();
-        save();
-        redraw();
+        commitLocal();
       }
 
       function applyRemoteClear() {
         shapes.length = 0;
         clearSelection();
-        save();
-        redraw();
+        commitLocal();
       }
 
       function resize() {
@@ -1831,8 +1829,8 @@
         if (geom.points) {
           return {
             points: geom.points.map((point) => [
-              Math.round((point[0] + dx) * 10) / 10,
-              Math.round((point[1] + dy) * 10) / 10
+              round1(point[0] + dx),
+              round1(point[1] + dy)
             ])
           };
         }
@@ -1840,16 +1838,16 @@
         if (Object.prototype.hasOwnProperty.call(geom, "text")) {
           return {
             ...geom,
-            x: Math.round((geom.x + dx) * 10) / 10,
-            y: Math.round((geom.y + dy) * 10) / 10
+            x: round1(geom.x + dx),
+            y: round1(geom.y + dy)
           };
         }
 
         return {
-          x1: Math.round((geom.x1 + dx) * 10) / 10,
-          y1: Math.round((geom.y1 + dy) * 10) / 10,
-          x2: Math.round((geom.x2 + dx) * 10) / 10,
-          y2: Math.round((geom.y2 + dy) * 10) / 10
+          x1: round1(geom.x1 + dx),
+          y1: round1(geom.y1 + dy),
+          x2: round1(geom.x2 + dx),
+          y2: round1(geom.y2 + dy)
         };
       }
 
@@ -2007,8 +2005,8 @@
             id: newId(),
             type: "text",
             geom: {
-              x: Math.round(point.x * 10) / 10,
-              y: Math.round(point.y * 10) / 10,
+              x: round1(point.x),
+              y: round1(point.y),
               text,
               fontSize: 28
             },
@@ -2078,10 +2076,10 @@
             id: "select-box",
             type: "select-box",
             geom: {
-              x1: Math.round(activeDrag.start.x * 10) / 10,
-              y1: Math.round(activeDrag.start.y * 10) / 10,
-              x2: Math.round(activeDrag.current.x * 10) / 10,
-              y2: Math.round(activeDrag.current.y * 10) / 10
+              x1: round1(activeDrag.start.x),
+              y1: round1(activeDrag.start.y),
+              x2: round1(activeDrag.current.x),
+              y2: round1(activeDrag.current.y)
             },
             options: {}
           };
@@ -2124,7 +2122,7 @@
             dragShapes,
             originalGeoms: dragShapes.map((shape) => ({
               id: shape.id,
-              geom: JSON.parse(JSON.stringify(shape.geom))
+              geom: clone(shape.geom)
             })),
             moved: false,
             historyRecorded: false
@@ -2340,64 +2338,7 @@
       }
 
       function makeSvgNode(rsvg, shape) {
-        const opts = roughOptions(shape.options, shape.type);
-
-        if (shape.type === "text") {
-          return makeSvgTextNode(shape);
-        }
-
-        if (shape.type === "rectangle") {
-          const box = normalizedBox(shape.geom);
-          return rsvg.rectangle(box.x, box.y, box.width, box.height, opts);
-        }
-
-        if (shape.type === "ellipse") {
-          const box = normalizedBox(shape.geom);
-          return rsvg.ellipse(
-            box.x + box.width / 2,
-            box.y + box.height / 2,
-            box.width,
-            box.height,
-            opts
-          );
-        }
-
-        if (shape.type === "line") {
-          const g = shape.geom;
-          return rsvg.line(g.x1, g.y1, g.x2, g.y2, opts);
-        }
-
-        if (shape.type === "curve") {
-          const points = curveRenderablePoints(shape.geom.points);
-          if (points.length < 2) return null;
-
-          return rsvg.curve(points, {
-            ...opts,
-            fill: undefined,
-            fillStyle: undefined,
-            roughness: Math.min(opts.roughness, 0.85),
-            bowing: Math.min(opts.bowing, 0.7),
-            curveFitting: 0.82,
-            curveTightness: 0.18
-          });
-        }
-
-        if (shape.type === "smart") {
-          const points = freehandRenderablePoints(shape.geom.points);
-          if (points.length < 2) return null;
-
-          return rsvg.curve(points, {
-            ...opts,
-            fill: undefined,
-            fillStyle: undefined,
-            roughness: Math.min(opts.roughness, 0.9),
-            bowing: Math.min(opts.bowing, 0.8),
-            curveFitting: 0.85,
-            curveTightness: 0.15
-          });
-        }
-
-        return null;
+        return shape.type === "text" ? makeSvgTextNode(shape) : buildRoughShape(rsvg, shape);
       }
 
       function exportSVG() {

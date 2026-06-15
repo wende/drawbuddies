@@ -6,10 +6,9 @@ Durable Object multiplayer architecture.
 
 ## Goal
 
-Take the standalone rough.js drawing playground
-(`rough-drawing-playground-index.html`) and make it the app's canvas, synced live
-across everyone in a room — reusing the same multiplayer model the pixel demo
-used.
+Take the standalone rough.js drawing playground and make it the app's canvas,
+synced live across everyone in a room — reusing the same multiplayer model the
+pixel demo used.
 
 ## Multiplayer architecture (unchanged in spirit)
 
@@ -46,9 +45,8 @@ What changed is the *unit of state*: **pixels → vector shapes**.
 
 ## Client — `public/index.html`
 
-- The pixel-grid UI was replaced entirely with the rough.js canvas from
-  `rough-drawing-playground-index.html`: Smart / Select / Hand / Text tools, shape
-  recognition, smart fills, PNG/SVG export, and undo.
+- The pixel-grid UI was replaced entirely with the rough.js canvas: Smart / Select
+  / Hand / Text tools, shape recognition, smart fills, PNG/SVG export, and undo.
 - **Globally-unique shape ids** via `crypto.randomUUID()` instead of the
   playground's per-client integer counter — otherwise two clients would each mint
   id `1` and collide.
@@ -93,5 +91,3 @@ After `npm run dev` (or deploy):
 
 - `src/index.ts` — Worker entry point + `CanvasRoom` Durable Object (shape sync).
 - `public/index.html` — collaborative rough.js drawing client.
-- `rough-drawing-playground-index.html` — original standalone playground (kept as
-  the source reference; not used by the app).
