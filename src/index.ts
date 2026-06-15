@@ -1,5 +1,5 @@
 /**
- * Rough Drawing Canvas - Cloudflare Worker + Durable Object
+ * DrawBuddies - Cloudflare Worker + Durable Object
  * A collaborative rough.js drawing board with live sync, presence, and persistence.
  *
  * State is a list of vector shapes. Each shape is client-authored with a globally

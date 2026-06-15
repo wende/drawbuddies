@@ -1,4 +1,4 @@
-# Rough Drawing — Collaborative Canvas
+# DrawBuddies — Collaborative Canvas
 
 A real-time collaborative drawing board. Sketch with a hand-drawn (rough.js) look,
 let the canvas recognize your shapes, and watch everything sync live to everyone
@@ -148,7 +148,7 @@ Undo and clear both broadcast (see below), so they reach everyone.
 
 ### Local persistence
 
-The drawing is mirrored to `localStorage` (`rough-drawing-playground:v2`) on every
+The drawing is mirrored to `localStorage` (`drawbuddies:v2`) on every
 change. This is **only a fast-paint cache** so the canvas isn't blank for the split
 second before the server sync arrives — the server is the source of truth, and its
 `sync` message replaces local state on connect.
@@ -297,7 +297,7 @@ npm run check    # tsc --noEmit — type-check the Worker
 npm run deploy   # wrangler deploy
 ```
 
-After deploying, the app is at `https://pixel-canvas-do.YOUR_SUBDOMAIN.workers.dev`.
+After deploying, the app is at `https://drawbuddies.YOUR_SUBDOMAIN.workers.dev`.
 
 ## How to test it
 

@@ -1,4 +1,4 @@
-# Rough Drawing Canvas — Multiplayer Conversion
+# DrawBuddies — Multiplayer Conversion
 
 This document summarizes the change that replaced the demo pixel canvas with a
 collaborative rough.js drawing board, while keeping the original Cloudflare

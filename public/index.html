@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rough Drawing — Collaborative Canvas</title>
+  <title>DrawBuddies — Collaborative Canvas</title>
   <link rel="preload" href="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <style>
     @font-face {
@@ -320,7 +320,7 @@
         return;
       }
 
-      const STORAGE_KEY = "rough-drawing-playground:v2";
+      const STORAGE_KEY = "drawbuddies:v2";
 
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d", { alpha: false });
@@ -2311,7 +2311,7 @@
 
       function exportPNG() {
         canvas.toBlob((blob) => {
-          if (blob) downloadBlob(blob, "rough-drawing.png");
+          if (blob) downloadBlob(blob, "drawbuddies.png");
         }, "image/png");
       }
 
@@ -2432,7 +2432,7 @@
           type: "image/svg+xml;charset=utf-8"
         });
 
-        downloadBlob(blob, "rough-drawing.svg");
+        downloadBlob(blob, "drawbuddies.svg");
       }
 
       function refreshControlLabels() {

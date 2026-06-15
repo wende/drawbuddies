@@ -1,6 +1,6 @@
 {
   "$schema": "node:wrangler/config-schema",
-  "name": "pixel-canvas-do",
+  "name": "drawbuddies",
   "main": "src/index.ts",
   "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
