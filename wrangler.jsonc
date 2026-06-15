@@ -1,0 +1,25 @@
+{
+  "$schema": "node:wrangler/config-schema",
+  "name": "pixel-canvas-do",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CANVAS_ROOM",
+        "class_name": "CanvasRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["CanvasRoom"]
+    }
+  ]
+}

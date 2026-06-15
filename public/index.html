@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Canvas — Collaborative r/place</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-bottom: 12px;
+    }
+    .status-bar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff4444;
+      transition: background 0.3s;
+    }
+    .status-dot.connected {
+      background: #44ff44;
+      box-shadow: 0 0 6px #44ff44;
+    }
+    .presence {
+      background: #16213e;
+      padding: 4px 12px;
+      border-radius: 12px;
+      border: 1px solid #0f3460;
+    }
+    .room-info {
+      color: #888;
+      font-size: 0.75rem;
+    }
+    .canvas-wrapper {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #canvas {
+      display: grid;
+      grid-template-columns: repeat(32, 1fr);
+      gap: 1px;
+      background: #0f3460;
+      padding: 4px;
+      border-radius: 8px;
+      cursor: crosshair;
+      user-select: none;
+      touch-action: none;
+    }
+    .cell {
+      width: 18px;
+      height: 18px;
+      background: #2a2a4a;
+      border-radius: 1px;
+      transition: background 0.15s ease;
+    }
+    .cell:hover {
+      outline: 2px solid #fff;
+      outline-offset: -2px;
+      z-index: 1;
+    }
+    @media (max-width: 700px) {
+      .cell { width: 10px; height: 10px; }
+    }
+    .palette {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .palette-label {
+      font-size: 0.8rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .colors {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    .color-btn {
+      width: 32px;
+      height: 32px;
+      border: 3px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .color-btn:hover {
+      transform: scale(1.15);
+    }
+    .color-btn.active {
+      border-color: #fff;
+      box-shadow: 0 0 8px rgba(255,255,255,0.4);
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    button {
+      background: #0f3460;
+      color: #eee;
+      border: 1px solid #1a4a7a;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #1a4a7a;
+    }
+    .instructions {
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: #888;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .instructions code {
+      background: #16213e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pixel Canvas</h1>
+  <p class="subtitle">Click a cell to paint. Changes sync live with everyone in the room.</p>
+
+  <div class="status-bar">
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <div class="presence" id="presence">0 people here</div>
+  </div>
+
+  <div class="canvas-wrapper">
+    <div id="canvas"></div>
+    <div class="palette">
+      <span class="palette-label">Colors</span>
+      <div class="colors" id="palette"></div>
+      <div class="controls">
+        <button id="clearBtn">Clear Canvas</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="room-info" id="roomInfo"></p>
+
+  <div class="instructions">
+    <p><strong>How to test:</strong></p>
+    <p>1. <strong>Realtime:</strong> Open two tabs side by side — paint in one, watch it appear in the other.</p>
+    <p>2. <strong>Persistence:</strong> Paint something, close ALL tabs, then reopen — your art is still there.</p>
+    <p>3. <strong>Presence:</strong> The "people here" count changes as tabs open and close.</p>
+    <p>4. <strong>Rooms:</strong> Add <code>?room=yourname</code> to the URL to create separate canvases.</p>
+  </div>
+
+  <script>
+    // ========== CONFIG ==========
+    const GRID_SIZE = 32;
+    const PALETTE = [
+      '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
+      '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
+      '#FFC0CB', '#A52A2A', '#808080', '#FFD700', '#4B0082',
+      '#00FF7F',
+    ];
+
+    // ========== STATE ==========
+    let ws = null;
+    let selectedColor = PALETTE[2]; // Default to red
+    let reconnectTimer = null;
+    let isConnected = false;
+
+    // ========== DOM ==========
+    const canvasEl = document.getElementById('canvas');
+    const paletteEl = document.getElementById('palette');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const presenceEl = document.getElementById('presence');
+    const roomInfo = document.getElementById('roomInfo');
+    const clearBtn = document.getElementById('clearBtn');
+
+    // Show current room
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomName = urlParams.get('room') || 'main';
+    roomInfo.textContent = `Room: "${roomName}"`;
+
+    // ========== BUILD GRID ==========
+    const cells = [];
+    for (let y = 0; y < GRID_SIZE; y++) {
+      const row = [];
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.x = x;
+        cell.dataset.y = y;
+        cell.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          paintPixel(x, y, selectedColor);
+        });
+        cell.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          paintPixel(x, y, selectedColor);
+        }, { passive: false });
+        // Drag to paint
+        cell.addEventListener('mouseenter', (e) => {
+          if (e.buttons === 1) {
+            paintPixel(x, y, selectedColor);
+          }
+        });
+        canvasEl.appendChild(cell);
+        row.push(cell);
+      }
+      cells.push(row);
+    }
+
+    // ========== BUILD PALETTE ==========
+    PALETTE.forEach((color) => {
+      const btn = document.createElement('button');
+      btn.className = 'color-btn';
+      btn.style.backgroundColor = color;
+      btn.dataset.color = color;
+      btn.addEventListener('click', () => selectColor(color));
+      paletteEl.appendChild(btn);
+    });
+
+    function selectColor(color) {
+      selectedColor = color;
+      document.querySelectorAll('.color-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.color === color);
+      });
+    }
+    selectColor(selectedColor);
+
+    // ========== WEBSOCKET ==========
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws?room=${encodeURIComponent(roomName)}`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        isConnected = true;
+        updateStatus(true);
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleMessage(msg);
+        } catch {
+          // ignore malformed
+        }
+      };
+
+      ws.onclose = () => {
+        isConnected = false;
+        updateStatus(false);
+        // Auto-reconnect
+        reconnectTimer = setTimeout(connect, 1000);
+      };
+
+      ws.onerror = () => {
+        // Let onclose handle reconnection
+      };
+    }
+
+    function handleMessage(msg) {
+      if (msg.type === 'sync') {
+        // Full state sync
+        applyPixels(msg.pixels);
+        updatePresence(msg.count);
+      } else if (msg.type === 'pixel') {
+        setPixel(msg.x, msg.y, msg.color);
+      } else if (msg.type === 'count') {
+        updatePresence(msg.count);
+      } else if (msg.type === 'clear') {
+        clearCanvasLocal();
+      }
+    }
+
+    function paintPixel(x, y, color) {
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const msg = { type: 'pixel', x, y, color };
+      ws.send(JSON.stringify(msg));
+    }
+
+    function applyPixels(pixels) {
+      clearCanvasLocal();
+      for (const [key, color] of Object.entries(pixels)) {
+        const [x, y] = key.split(',').map(Number);
+        if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+          setPixel(x, y, color);
+        }
+      }
+    }
+
+    function setPixel(x, y, color) {
+      if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+        cells[y][x].style.backgroundColor = color;
+      }
+    }
+
+    function clearCanvasLocal() {
+      for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          cells[y][x].style.backgroundColor = '#2a2a4a';
+        }
+      }
+    }
+
+    function updateStatus(connected) {
+      statusDot.classList.toggle('connected', connected);
+      statusText.textContent = connected ? 'Connected' : 'Disconnected — reconnecting...';
+    }
+
+    function updatePresence(count) {
+      presenceEl.textContent = `${count} ${count === 1 ? 'person' : 'people'} here`;
+    }
+
+    // ========== CONTROLS ==========
+    clearBtn.addEventListener('click', () => {
+      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'clear' }));
+    });
+
+    // ========== INIT ==========
+    connect();
+
+    // Prevent accidental page leave while painting
+    window.addEventListener('beforeunload', () => {
+      if (ws) ws.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+    });
+  </script>
+</body>
+</html>

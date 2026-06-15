@@ -1,0 +1,15 @@
+{
+  "name": "pixel-canvas-do",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250616.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^4.86.0"
+  }
+}
