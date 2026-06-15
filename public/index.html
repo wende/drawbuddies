@@ -1,376 +1,2512 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pixel Canvas — Collaborative r/place</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rough Drawing — Collaborative Canvas</title>
+  <link rel="preload" href="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @font-face {
+      font-family: 'Excalifont';
+      src: url('https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      --paper: #f7f2e8;
+      --ink: #201f1c;
+      --panel: rgba(255, 252, 244, 0.88);
+      --line: rgba(35, 32, 25, 0.16);
+      --shadow: rgba(35, 32, 25, 0.16);
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #1a1a2e;
-      color: #eee;
-      min-height: 100vh;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(255,255,255,0.55), transparent 24rem),
+        radial-gradient(circle at 80% 90%, rgba(0,0,0,0.045), transparent 22rem),
+        linear-gradient(135deg, rgba(0,0,0,0.018) 25%, transparent 25%) 0 0 / 18px 18px,
+        var(--paper);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    body.hand-mode canvas {
+      cursor: grab;
+    }
+
+    body.dragging-shape canvas {
+      cursor: grabbing;
+    }
+
+    body.text-mode canvas {
+      cursor: text;
+    }
+
+    body.select-mode canvas {
+      cursor: cell;
+    }
+
+    .toolbar {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      z-index: 10;
+      transform: translateX(-50%);
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       align-items: center;
-      padding: 20px;
+      justify-content: center;
+      gap: 8px;
+      max-width: min(980px, calc(100vw - 24px));
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 16px 50px var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      user-select: none;
     }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 8px;
-      color: #fff;
-    }
-    .subtitle {
-      font-size: 0.85rem;
-      color: #aaa;
-      margin-bottom: 12px;
-    }
-    .status-bar {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      margin-bottom: 16px;
-      font-size: 0.85rem;
-    }
-    .status {
+
+    .group {
       display: flex;
       align-items: center;
       gap: 6px;
+      min-height: 34px;
+      padding: 2px 4px;
     }
-    .status-dot {
+
+    .group + .group {
+      border-left: 1px solid var(--line);
+      padding-left: 10px;
+    }
+
+    button,
+    input[type="color"] {
+      color: var(--ink);
+      border: 1px solid rgba(35, 32, 25, 0.18);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.58);
+      font: inherit;
+    }
+
+    button {
+      height: 30px;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    button:hover,
+    input[type="color"]:hover {
+      border-color: rgba(35, 32, 25, 0.36);
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    button.active {
+      color: #fffaf0;
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    input[type="color"] {
+      width: 34px;
+      height: 30px;
+      padding: 3px;
+      cursor: pointer;
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      font-size: 12px;
+      color: rgba(32, 31, 28, 0.78);
+    }
+
+    input[type="range"] {
+      width: 82px;
+      accent-color: var(--ink);
+    }
+
+    .value {
+      min-width: 2.4em;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: rgba(32, 31, 28, 0.68);
+    }
+
+    .hint {
+      position: fixed;
+      left: 14px;
+      top: 12px;
+      z-index: 8;
+      max-width: min(560px, calc(100vw - 28px));
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 252, 244, 0.74);
+      color: rgba(32, 31, 28, 0.62);
+      font-size: 12px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      pointer-events: none;
+    }
+
+    .netstatus {
+      position: fixed;
+      right: 14px;
+      top: 12px;
+      z-index: 9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 252, 244, 0.82);
+      color: rgba(32, 31, 28, 0.74);
+      font-size: 12px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      user-select: none;
+    }
+
+    .netstatus .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #ff4444;
-      transition: background 0.3s;
+      background: #d23b3b;
+      box-shadow: 0 0 0 0 rgba(210, 59, 59, 0.4);
+      transition: background 0.3s, box-shadow 0.3s;
     }
-    .status-dot.connected {
-      background: #44ff44;
-      box-shadow: 0 0 6px #44ff44;
+
+    .netstatus .dot.connected {
+      background: #2f9e44;
+      box-shadow: 0 0 6px rgba(47, 158, 68, 0.7);
     }
-    .presence {
-      background: #16213e;
-      padding: 4px 12px;
-      border-radius: 12px;
-      border: 1px solid #0f3460;
-    }
-    .room-info {
-      color: #888;
-      font-size: 0.75rem;
-    }
-    .canvas-wrapper {
-      display: flex;
-      gap: 24px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    #canvas {
-      display: grid;
-      grid-template-columns: repeat(32, 1fr);
-      gap: 1px;
-      background: #0f3460;
-      padding: 4px;
+
+    .text-editor {
+      position: fixed;
+      z-index: 20;
+      min-width: 160px;
+      min-height: 42px;
+      padding: 4px 6px;
+      border: 1px dashed rgba(35, 32, 25, 0.45);
       border-radius: 8px;
-      cursor: crosshair;
-      user-select: none;
-      touch-action: none;
+      outline: none;
+      resize: both;
+      overflow: hidden;
+      background: rgba(255, 252, 244, 0.88);
+      color: var(--ink);
+      font-family: 'Excalifont', cursive;
+      font-size: 28px;
+      line-height: 1.15;
+      box-shadow: 0 10px 28px rgba(35, 32, 25, 0.12);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
     }
-    .cell {
-      width: 18px;
-      height: 18px;
-      background: #2a2a4a;
-      border-radius: 1px;
-      transition: background 0.15s ease;
-    }
-    .cell:hover {
-      outline: 2px solid #fff;
-      outline-offset: -2px;
-      z-index: 1;
-    }
-    @media (max-width: 700px) {
-      .cell { width: 10px; height: 10px; }
-    }
-    .palette {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .palette-label {
-      font-size: 0.8rem;
-      color: #aaa;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .colors {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-    }
-    .color-btn {
-      width: 32px;
-      height: 32px;
-      border: 3px solid transparent;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-    .color-btn:hover {
-      transform: scale(1.15);
-    }
-    .color-btn.active {
-      border-color: #fff;
-      box-shadow: 0 0 8px rgba(255,255,255,0.4);
-    }
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    button {
-      background: #0f3460;
-      color: #eee;
-      border: 1px solid #1a4a7a;
-      padding: 8px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #1a4a7a;
-    }
-    .instructions {
-      margin-top: 20px;
-      font-size: 0.75rem;
-      color: #888;
-      text-align: center;
-      line-height: 1.6;
-    }
-    .instructions code {
-      background: #16213e;
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: #ccc;
+
+    @media (max-width: 760px) {
+      .toolbar {
+        bottom: 10px;
+        justify-content: flex-start;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        border-radius: 14px;
+      }
+
+      .group {
+        flex: 0 0 auto;
+      }
+
+      .hint {
+        display: none;
+      }
+
+      input[type="range"] {
+        width: 70px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Pixel Canvas</h1>
-  <p class="subtitle">Click a cell to paint. Changes sync live with everyone in the room.</p>
+  <canvas id="canvas" aria-label="Rough drawing canvas"></canvas>
 
-  <div class="status-bar">
-    <div class="status">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Connecting...</span>
+  <div class="hint">
+    Smart draws and recognizes shapes, curves, and deliberate scribble-fills. Select creates a draggable group from a rectangle. Hand drags one shape or the current selection. Text adds Excalifont labels. Drawings sync live with everyone in the room. Cmd/Ctrl+Z undo.
+  </div>
+
+  <div class="netstatus" aria-live="polite">
+    <span class="dot" id="statusDot"></span>
+    <span id="presence">Connecting…</span>
+  </div>
+
+  <div class="toolbar" role="toolbar" aria-label="Drawing controls">
+    <div class="group" aria-label="Tools">
+      <button type="button" class="tool active" data-tool="smart">Smart</button>
+      <button type="button" class="tool" data-tool="select">Select</button>
+      <button type="button" class="tool" data-tool="hand">Hand</button>
+      <button type="button" class="tool" data-tool="text">Text</button>
     </div>
-    <div class="presence" id="presence">0 people here</div>
-  </div>
 
-  <div class="canvas-wrapper">
-    <div id="canvas"></div>
-    <div class="palette">
-      <span class="palette-label">Colors</span>
-      <div class="colors" id="palette"></div>
-      <div class="controls">
-        <button id="clearBtn">Clear Canvas</button>
-      </div>
+    <div class="group">
+      <label title="Stroke color">
+        Stroke
+        <input id="strokeColor" type="color" value="#222222" />
+      </label>
+    </div>
+
+    <div class="group">
+      <label>
+        Rough
+        <input id="roughness" type="range" min="0" max="4" step="0.1" value="1.5" />
+        <span id="roughnessValue" class="value">1.5</span>
+      </label>
+
+      <label>
+        Bow
+        <input id="bowing" type="range" min="0" max="10" step="0.1" value="1.0" />
+        <span id="bowingValue" class="value">1.0</span>
+      </label>
+
+      <label>
+        Width
+        <input id="strokeWidth" type="range" min="1" max="14" step="0.5" value="2" />
+        <span id="strokeWidthValue" class="value">2.0</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <button id="undoBtn" type="button">Undo</button>
+      <button id="clearBtn" type="button">Clear</button>
+      <button id="pngBtn" type="button">Export PNG</button>
+      <button id="svgBtn" type="button">Export SVG</button>
     </div>
   </div>
 
-  <p class="room-info" id="roomInfo"></p>
-
-  <div class="instructions">
-    <p><strong>How to test:</strong></p>
-    <p>1. <strong>Realtime:</strong> Open two tabs side by side — paint in one, watch it appear in the other.</p>
-    <p>2. <strong>Persistence:</strong> Paint something, close ALL tabs, then reopen — your art is still there.</p>
-    <p>3. <strong>Presence:</strong> The "people here" count changes as tabs open and close.</p>
-    <p>4. <strong>Rooms:</strong> Add <code>?room=yourname</code> to the URL to create separate canvases.</p>
-  </div>
-
+  <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
   <script>
-    // ========== CONFIG ==========
-    const GRID_SIZE = 32;
-    const PALETTE = [
-      '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
-      '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
-      '#FFC0CB', '#A52A2A', '#808080', '#FFD700', '#4B0082',
-      '#00FF7F',
-    ];
+    (() => {
+      "use strict";
 
-    // ========== STATE ==========
-    let ws = null;
-    let selectedColor = PALETTE[2]; // Default to red
-    let reconnectTimer = null;
-    let isConnected = false;
+      if (!window.rough) {
+        document.body.innerHTML =
+          '<p style="margin:2rem;font:16px system-ui">rough.js failed to load. Check your network connection.</p>';
+        return;
+      }
 
-    // ========== DOM ==========
-    const canvasEl = document.getElementById('canvas');
-    const paletteEl = document.getElementById('palette');
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
-    const presenceEl = document.getElementById('presence');
-    const roomInfo = document.getElementById('roomInfo');
-    const clearBtn = document.getElementById('clearBtn');
+      const STORAGE_KEY = "rough-drawing-playground:v2";
 
-    // Show current room
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomName = urlParams.get('room') || 'main';
-    roomInfo.textContent = `Room: "${roomName}"`;
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d", { alpha: false });
 
-    // ========== BUILD GRID ==========
-    const cells = [];
-    for (let y = 0; y < GRID_SIZE; y++) {
-      const row = [];
-      for (let x = 0; x < GRID_SIZE; x++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.dataset.x = x;
-        cell.dataset.y = y;
-        cell.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          paintPixel(x, y, selectedColor);
-        });
-        cell.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          paintPixel(x, y, selectedColor);
-        }, { passive: false });
-        // Drag to paint
-        cell.addEventListener('mouseenter', (e) => {
-          if (e.buttons === 1) {
-            paintPixel(x, y, selectedColor);
+      const controls = {
+        strokeColor: document.getElementById("strokeColor"),
+        roughness: document.getElementById("roughness"),
+        roughnessValue: document.getElementById("roughnessValue"),
+        bowing: document.getElementById("bowing"),
+        bowingValue: document.getElementById("bowingValue"),
+        strokeWidth: document.getElementById("strokeWidth"),
+        strokeWidthValue: document.getElementById("strokeWidthValue"),
+        undoBtn: document.getElementById("undoBtn"),
+        clearBtn: document.getElementById("clearBtn"),
+        pngBtn: document.getElementById("pngBtn"),
+        svgBtn: document.getElementById("svgBtn")
+      };
+
+      const statusDot = document.getElementById("statusDot");
+      const presenceEl = document.getElementById("presence");
+
+      let rc = rough.canvas(canvas);
+      const gen = rough.generator();
+
+      let dpr = 1;
+      let viewWidth = 0;
+      let viewHeight = 0;
+      let currentTool = "smart";
+      let activeDrag = null;
+      let selectedIds = [];
+
+      const shapes = [];
+      const historyStack = [];
+
+      // ===== Globally-unique shape ids =====
+      // Shape ids must be unique across all clients so concurrent authors never
+      // collide. Integer counters would; UUID-ish strings won't.
+      const CLIENT_ID =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID().slice(0, 8)
+          : Math.random().toString(36).slice(2, 10);
+      let idCounter = 0;
+
+      function newId() {
+        if (typeof crypto !== "undefined" && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        return `${CLIENT_ID}-${Date.now().toString(36)}-${idCounter++}`;
+      }
+
+      function newSeed() {
+        return typeof rough.newSeed === "function"
+          ? rough.newSeed()
+          : Math.floor(Math.random() * 2147483647);
+      }
+
+      function clampNumber(value, fallback) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function roundPoint(point) {
+        return [Math.round(point[0] * 10) / 10, Math.round(point[1] * 10) / 10];
+      }
+
+      function currentOptions(seed = newSeed()) {
+        return {
+          stroke: controls.strokeColor.value,
+          fill: null,
+          fillStyle: "hachure",
+          roughness: clampNumber(controls.roughness.value, 1.5),
+          bowing: clampNumber(controls.bowing.value, 1),
+          strokeWidth: clampNumber(controls.strokeWidth.value, 2),
+          seed
+        };
+      }
+
+      function roughOptions(options, type) {
+        const out = {
+          stroke: options.stroke || "#222222",
+          roughness: clampNumber(options.roughness, 1.5),
+          bowing: clampNumber(options.bowing, 1),
+          strokeWidth: clampNumber(options.strokeWidth, 2),
+          seed: clampNumber(options.seed, 1)
+        };
+
+        if ((type === "rectangle" || type === "ellipse") && options.fill) {
+          out.fill = options.fill;
+          out.fillStyle = options.fillStyle || "hachure";
+        }
+
+        return out;
+      }
+
+      function shapeZRank(shape) {
+        if (!shape || !shape.options || !shape.options.fill) {
+          return shape && shape.type === "text" ? 5 : 4;
+        }
+
+        const style = shape.options.fillStyle;
+
+        if (style === "solid") return 0;
+        if (style === "zigzag" || style === "dots") return 1;
+        if (style === "cross-hatch") return 2;
+        if (style === "hachure") return 3;
+
+        return 1;
+      }
+
+      function orderedShapeEntries() {
+        return shapes
+          .map((shape, index) => ({ shape, index, rank: shapeZRank(shape) }))
+          .sort((a, b) => {
+            if (a.rank !== b.rank) return a.rank - b.rank;
+            return a.index - b.index;
+          });
+      }
+
+      function orderedShapes() {
+        return orderedShapeEntries().map((entry) => entry.shape);
+      }
+
+      function clearSelection() {
+        selectedIds = [];
+      }
+
+      function hasSelection() {
+        return selectedIds.length > 0;
+      }
+
+      function selectedShapes() {
+        const idSet = new Set(selectedIds);
+        return orderedShapes().filter((shape) => idSet.has(shape.id));
+      }
+
+      function selectionBounds() {
+        const items = selectedShapes();
+        if (!items.length) return null;
+
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        for (const shape of items) {
+          const box = shapeBounds(shape);
+          minX = Math.min(minX, box.x);
+          minY = Math.min(minY, box.y);
+          maxX = Math.max(maxX, box.x + box.width);
+          maxY = Math.max(maxY, box.y + box.height);
+        }
+
+        return {
+          x: minX,
+          y: minY,
+          width: Math.max(0, maxX - minX),
+          height: Math.max(0, maxY - minY)
+        };
+      }
+
+      function boxContainsBox(outer, inner) {
+        return (
+          inner.x >= outer.x &&
+          inner.y >= outer.y &&
+          inner.x + inner.width <= outer.x + outer.width &&
+          inner.y + inner.height <= outer.y + outer.height
+        );
+      }
+
+      function drawSelectionOverlay() {
+        const box = selectionBounds();
+        if (!box) return;
+
+        ctx.save();
+        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(47, 101, 255, 0.9)";
+        ctx.fillStyle = "rgba(47, 101, 255, 0.08)";
+        ctx.fillRect(box.x - 4, box.y - 4, box.width + 8, box.height + 8);
+        ctx.strokeRect(box.x - 4, box.y - 4, box.width + 8, box.height + 8);
+        ctx.restore();
+      }
+
+      function drawSelectMarquee(shape) {
+        if (!shape || shape.type !== "select-box") return;
+        const box = normalizedBox(shape.geom);
+
+        ctx.save();
+        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(47, 101, 255, 0.95)";
+        ctx.fillStyle = "rgba(47, 101, 255, 0.07)";
+        ctx.fillRect(box.x, box.y, box.width, box.height);
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.restore();
+      }
+
+      function applySelectionBox(shape) {
+        const box = normalizedBox(shape.geom);
+        selectedIds = orderedShapes()
+          .filter((item) => boxContainsBox(box, shapeBounds(item)))
+          .map((item) => item.id);
+      }
+
+
+      function textLines(shape) {
+        return String(shape.geom.text || "").split(/\r?\n/);
+      }
+
+      function textFont(shape) {
+        const size = shape.geom.fontSize || 28;
+        return `${size}px Excalifont, cursive`;
+      }
+
+      function textBounds(shape) {
+        const size = shape.geom.fontSize || 28;
+        const lines = textLines(shape);
+
+        ctx.save();
+        ctx.font = textFont(shape);
+        const width = Math.max(1, ...lines.map((line) => ctx.measureText(line || " ").width));
+        ctx.restore();
+
+        return {
+          x: shape.geom.x,
+          y: shape.geom.y,
+          width,
+          height: Math.max(size, lines.length * size * 1.15)
+        };
+      }
+
+      function seededOffset(seed, index) {
+        let value = Math.imul((seed || 1) + index * 374761393, 668265263);
+        value = (value ^ (value >>> 13)) >>> 0;
+        return ((value % 1000) / 1000 - 0.5) * 0.7;
+      }
+
+      function drawTextShape(context, shape) {
+        const size = shape.geom.fontSize || 28;
+        const lines = textLines(shape);
+
+        context.save();
+        context.font = textFont(shape);
+        context.textBaseline = "top";
+        context.fillStyle = shape.options.stroke || "#222222";
+        context.strokeStyle = shape.options.stroke || "#222222";
+        context.lineWidth = Math.max(0.35, (shape.options.strokeWidth || 2) * 0.08);
+
+        for (let i = 0; i < lines.length; i++) {
+          const y = shape.geom.y + i * size * 1.15;
+          const line = lines[i] || " ";
+
+          context.globalAlpha = 0.92;
+          context.fillText(line, shape.geom.x, y);
+
+          context.globalAlpha = 0.24;
+          context.strokeText(
+            line,
+            shape.geom.x + seededOffset(shape.options.seed, i * 2),
+            y + seededOffset(shape.options.seed, i * 2 + 1)
+          );
+        }
+
+        context.restore();
+      }
+
+      function makeShape(type, start, end, points, options) {
+        if (type === "smart") {
+          return {
+            id: newId(),
+            type,
+            geom: { points: points.map(roundPoint) },
+            options: { ...options },
+            drawable: null
+          };
+        }
+
+        return {
+          id: newId(),
+          type,
+          geom: {
+            x1: Math.round(start.x * 10) / 10,
+            y1: Math.round(start.y * 10) / 10,
+            x2: Math.round(end.x * 10) / 10,
+            y2: Math.round(end.y * 10) / 10
+          },
+          options: { ...options },
+          drawable: null
+        };
+      }
+
+      function normalizedBox(geom) {
+        const x = Math.min(geom.x1, geom.x2);
+        const y = Math.min(geom.y1, geom.y2);
+        const width = Math.abs(geom.x2 - geom.x1);
+        const height = Math.abs(geom.y2 - geom.y1);
+        return { x, y, width, height };
+      }
+
+      function buildDrawable(shape) {
+        const opts = roughOptions(shape.options, shape.type);
+
+        if (shape.type === "text") {
+          return null;
+        }
+
+        if (shape.type === "rectangle") {
+          const box = normalizedBox(shape.geom);
+          return gen.rectangle(box.x, box.y, box.width, box.height, opts);
+        }
+
+        if (shape.type === "ellipse") {
+          const box = normalizedBox(shape.geom);
+          return gen.ellipse(
+            box.x + box.width / 2,
+            box.y + box.height / 2,
+            box.width,
+            box.height,
+            opts
+          );
+        }
+
+        if (shape.type === "line") {
+          const g = shape.geom;
+          return gen.line(g.x1, g.y1, g.x2, g.y2, opts);
+        }
+
+        if (shape.type === "curve") {
+          const points = curveRenderablePoints(shape.geom.points);
+          if (points.length < 2) return null;
+
+          return gen.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.85),
+            bowing: Math.min(opts.bowing, 0.7),
+            curveFitting: 0.82,
+            curveTightness: 0.18
+          });
+        }
+
+        if (shape.type === "smart") {
+          const points = freehandRenderablePoints(shape.geom.points);
+          if (points.length < 2) return null;
+
+          return gen.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.9),
+            bowing: Math.min(opts.bowing, 0.8),
+            curveFitting: 0.85,
+            curveTightness: 0.15
+          });
+        }
+
+        return null;
+      }
+
+      function isMeaningful(shape) {
+        if (!shape) return false;
+
+        if (shape.type === "text") {
+          return Boolean(shape.geom && String(shape.geom.text || "").trim());
+        }
+
+        if (shape.type === "select-box") {
+          const g = shape.geom;
+          return Math.abs(g.x2 - g.x1) > 4 && Math.abs(g.y2 - g.y1) > 4;
+        }
+
+        if (shape.type === "smart" || shape.type === "curve") {
+          return shape.geom.points.length > 1 && pathLength(shape.geom.points) > 3;
+        }
+
+        const g = shape.geom;
+        const dx = g.x2 - g.x1;
+        const dy = g.y2 - g.y1;
+
+        if (shape.type === "line") {
+          return Math.hypot(dx, dy) > 3;
+        }
+
+        return Math.abs(dx) > 3 && Math.abs(dy) > 3;
+      }
+
+      function pathLength(points) {
+        let total = 0;
+        for (let i = 1; i < points.length; i++) {
+          total += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+        }
+        return total;
+      }
+
+      function simplifyPoints(points, minDistance = 2.5) {
+        if (!points || points.length <= 2) return points || [];
+
+        const out = [points[0]];
+
+        for (let i = 1; i < points.length - 1; i++) {
+          const prev = out[out.length - 1];
+          const curr = points[i];
+
+          if (Math.hypot(curr[0] - prev[0], curr[1] - prev[1]) >= minDistance) {
+            out.push(curr);
+          }
+        }
+
+        out.push(points[points.length - 1]);
+        return out;
+      }
+
+      function smoothPoints(points, strength = 0.45) {
+        if (!points || points.length <= 2) return points || [];
+
+        const out = [points[0]];
+
+        for (let i = 1; i < points.length - 1; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const next = points[i + 1];
+
+          out.push([
+            curr[0] * (1 - strength) + ((prev[0] + next[0]) / 2) * strength,
+            curr[1] * (1 - strength) + ((prev[1] + next[1]) / 2) * strength
+          ]);
+        }
+
+        out.push(points[points.length - 1]);
+        return out;
+      }
+
+      function freehandRenderablePoints(points) {
+        return smoothPoints(simplifyPoints(points, 2.5), 0.45);
+      }
+
+      function distancePointToLine(point, start, end) {
+        const px = point[0];
+        const py = point[1];
+        const x1 = start[0];
+        const y1 = start[1];
+        const x2 = end[0];
+        const y2 = end[1];
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const lengthSquared = dx * dx + dy * dy;
+
+        if (!lengthSquared) return Math.hypot(px - x1, py - y1);
+
+        return Math.abs(dy * px - dx * py + x2 * y1 - y2 * x1) / Math.sqrt(lengthSquared);
+      }
+
+      function douglasPeucker(points, epsilon = 6) {
+        if (!points || points.length <= 2) return points || [];
+
+        let maxDistance = 0;
+        let index = 0;
+        const first = points[0];
+        const last = points[points.length - 1];
+
+        for (let i = 1; i < points.length - 1; i++) {
+          const distance = distancePointToLine(points[i], first, last);
+          if (distance > maxDistance) {
+            index = i;
+            maxDistance = distance;
+          }
+        }
+
+        if (maxDistance > epsilon) {
+          const left = douglasPeucker(points.slice(0, index + 1), epsilon);
+          const right = douglasPeucker(points.slice(index), epsilon);
+          return left.slice(0, -1).concat(right);
+        }
+
+        return [first, last];
+      }
+
+      function resamplePoints(points, targetCount = 34) {
+        if (!points || points.length <= 2) return points || [];
+
+        const total = pathLength(points);
+        if (total <= 0) return points;
+
+        const count = Math.max(2, Math.min(targetCount, Math.ceil(total / 9)));
+        const spacing = total / (count - 1);
+        const out = [points[0]];
+
+        let accumulated = 0;
+        let nextDistance = spacing;
+
+        for (let i = 1; i < points.length; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const segment = Math.hypot(curr[0] - prev[0], curr[1] - prev[1]);
+          if (segment === 0) continue;
+
+          while (accumulated + segment >= nextDistance && out.length < count - 1) {
+            const t = (nextDistance - accumulated) / segment;
+            out.push([
+              prev[0] + (curr[0] - prev[0]) * t,
+              prev[1] + (curr[1] - prev[1]) * t
+            ]);
+            nextDistance += spacing;
+          }
+
+          accumulated += segment;
+        }
+
+        out.push(points[points.length - 1]);
+        return out;
+      }
+
+      function smoothPointsRepeated(points, strength = 0.24, iterations = 1) {
+        let out = points || [];
+        for (let i = 0; i < iterations; i++) {
+          out = smoothPoints(out, strength);
+        }
+        return out;
+      }
+
+      function curveRenderablePoints(points) {
+        const simplified = simplifyPoints(points, 2.2);
+        const reduced = douglasPeucker(simplified, 2.2);
+        const resampled = resamplePoints(reduced, 34);
+        return smoothPointsRepeated(resampled, 0.24, 1);
+      }
+
+      function pointBounds(points) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        for (const point of points) {
+          minX = Math.min(minX, point[0]);
+          minY = Math.min(minY, point[1]);
+          maxX = Math.max(maxX, point[0]);
+          maxY = Math.max(maxY, point[1]);
+        }
+
+        return {
+          minX,
+          minY,
+          maxX,
+          maxY,
+          width: maxX - minX,
+          height: maxY - minY
+        };
+      }
+
+      function closedness(points, bounds) {
+        if (points.length < 2) return Infinity;
+        const first = points[0];
+        const last = points[points.length - 1];
+        const diag = Math.hypot(bounds.width, bounds.height) || 1;
+        return Math.hypot(last[0] - first[0], last[1] - first[1]) / diag;
+      }
+
+      function recognizeLine(points, bounds) {
+        const length = pathLength(points);
+        const start = points[0];
+        const end = points[points.length - 1];
+        const direct = Math.hypot(end[0] - start[0], end[1] - start[1]);
+
+        if (direct < 12 || length < 12) return null;
+
+        const straightness = direct / length;
+        let maxDistance = 0;
+        let totalDistance = 0;
+
+        for (const point of points) {
+          const distance = distancePointToLine(point, start, end);
+          maxDistance = Math.max(maxDistance, distance);
+          totalDistance += distance;
+        }
+
+        const meanDistance = totalDistance / points.length;
+        const tolerance = Math.max(4.5, direct * 0.028);
+
+        if (straightness >= 0.95 && maxDistance <= tolerance * 1.8 && meanDistance <= tolerance * 0.85) {
+          return {
+            type: "line",
+            geom: {
+              x1: Math.round(start[0] * 10) / 10,
+              y1: Math.round(start[1] * 10) / 10,
+              x2: Math.round(end[0] * 10) / 10,
+              y2: Math.round(end[1] * 10) / 10
+            }
+          };
+        }
+
+        return null;
+      }
+
+      function angleDelta(a, b) {
+        let delta = a - b;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        return Math.abs(delta);
+      }
+
+      function cornerEvidence(points) {
+        if (!points || points.length < 5) return 0;
+
+        const simplified = douglasPeucker(points, 4);
+        if (simplified.length < 4) return 0;
+
+        let corners = 0;
+
+        for (let i = 1; i < simplified.length - 1; i++) {
+          const prev = simplified[i - 1];
+          const curr = simplified[i];
+          const next = simplified[i + 1];
+
+          const a1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+          const a2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+
+          let delta = Math.abs(a2 - a1);
+          while (delta > Math.PI) delta = Math.abs(delta - Math.PI * 2);
+
+          if (delta > 0.72 && delta < 2.45) {
+            corners++;
+          }
+        }
+
+        return corners;
+      }
+
+      function rectangleStraightEdgeEvidence(points, bounds) {
+        const { minX, minY, maxX, maxY, width, height } = bounds;
+        const minSide = Math.max(1, Math.min(width, height));
+        const edgeTolerance = Math.max(6, minSide * 0.09);
+
+        let totalLength = 0;
+        let axisAlignedLength = 0;
+
+        const sideLengths = {
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0
+        };
+
+        for (let i = 1; i < points.length; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const mx = (prev[0] + curr[0]) / 2;
+          const my = (prev[1] + curr[1]) / 2;
+          const dx = curr[0] - prev[0];
+          const dy = curr[1] - prev[1];
+          const length = Math.hypot(dx, dy);
+          if (length < 2) continue;
+
+          totalLength += length;
+
+          const angle = Math.abs(Math.atan2(dy, dx));
+          const horizontalish =
+            angleDelta(angle, 0) < 0.22 || angleDelta(angle, Math.PI) < 0.22;
+          const verticalish = angleDelta(angle, Math.PI / 2) < 0.22;
+
+          if (horizontalish || verticalish) {
+            axisAlignedLength += length;
+          }
+
+          if (Math.abs(mx - minX) <= edgeTolerance && verticalish) sideLengths.left += length;
+          if (Math.abs(mx - maxX) <= edgeTolerance && verticalish) sideLengths.right += length;
+          if (Math.abs(my - minY) <= edgeTolerance && horizontalish) sideLengths.top += length;
+          if (Math.abs(my - maxY) <= edgeTolerance && horizontalish) sideLengths.bottom += length;
+        }
+
+        const requiredHorizontal = Math.max(8, width * 0.24);
+        const requiredVertical = Math.max(8, height * 0.24);
+        const sidesWithStraightRuns = [
+          sideLengths.left >= requiredVertical,
+          sideLengths.right >= requiredVertical,
+          sideLengths.top >= requiredHorizontal,
+          sideLengths.bottom >= requiredHorizontal
+        ].filter(Boolean).length;
+
+        return {
+          axisRatio: totalLength ? axisAlignedLength / totalLength : 0,
+          sidesWithStraightRuns
+        };
+      }
+
+      function recognizeRectangle(points, bounds) {
+        const { minX, minY, maxX, maxY, width, height } = bounds;
+        const minSide = Math.min(width, height);
+        const diag = Math.hypot(width, height);
+
+        if (minSide < 22 || closedness(points, bounds) > 0.30) return null;
+
+        const edgeTolerance = Math.max(5.5, minSide * 0.075);
+        let nearEdge = 0;
+        let totalEdgeDistance = 0;
+        let left = 0;
+        let right = 0;
+        let top = 0;
+        let bottom = 0;
+        let cornerHits = 0;
+
+        for (const point of points) {
+          const [x, y] = point;
+          const distances = {
+            left: Math.abs(x - minX),
+            right: Math.abs(x - maxX),
+            top: Math.abs(y - minY),
+            bottom: Math.abs(y - maxY)
+          };
+
+          const nearest = Math.min(distances.left, distances.right, distances.top, distances.bottom);
+          totalEdgeDistance += nearest;
+
+          if (nearest <= edgeTolerance) nearEdge++;
+          if (distances.left <= edgeTolerance) left++;
+          if (distances.right <= edgeTolerance) right++;
+          if (distances.top <= edgeTolerance) top++;
+          if (distances.bottom <= edgeTolerance) bottom++;
+
+          const nearHorizontalEdge = distances.top <= edgeTolerance || distances.bottom <= edgeTolerance;
+          const nearVerticalEdge = distances.left <= edgeTolerance || distances.right <= edgeTolerance;
+          if (nearHorizontalEdge && nearVerticalEdge) cornerHits++;
+        }
+
+        const nearRatio = nearEdge / points.length;
+        const meanEdgeDistance = totalEdgeDistance / points.length;
+        const sideMinCount = Math.max(3, points.length * 0.11);
+        const allSidesCovered =
+          left >= sideMinCount &&
+          right >= sideMinCount &&
+          top >= sideMinCount &&
+          bottom >= sideMinCount;
+
+        const straightEvidence = rectangleStraightEdgeEvidence(points, bounds);
+        const enoughCorners = cornerHits >= 3 && cornerEvidence(points) >= 3;
+        const compactEnough = meanEdgeDistance <= Math.max(4.8, minSide * 0.06);
+        const hasStraightEdges =
+          straightEvidence.axisRatio >= 0.48 &&
+          straightEvidence.sidesWithStraightRuns >= 3;
+
+        if (
+          nearRatio >= 0.74 &&
+          allSidesCovered &&
+          enoughCorners &&
+          compactEnough &&
+          hasStraightEdges &&
+          diag >= 32
+        ) {
+          return {
+            type: "rectangle",
+            geom: {
+              x1: Math.round(minX * 10) / 10,
+              y1: Math.round(minY * 10) / 10,
+              x2: Math.round(maxX * 10) / 10,
+              y2: Math.round(maxY * 10) / 10
+            }
+          };
+        }
+
+        return null;
+      }
+
+      function recognizeEllipse(points, bounds) {
+        const { minX, minY, maxX, maxY, width, height } = bounds;
+        const minSide = Math.min(width, height);
+
+        if (minSide < 18 || closedness(points, bounds) > 0.44) return null;
+
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rx = width / 2 || 1;
+        const ry = height / 2 || 1;
+
+        let sumError = 0;
+        let maxError = 0;
+        let insideCenter = 0;
+        const quadrants = [0, 0, 0, 0];
+
+        for (const point of points) {
+          const nx = (point[0] - cx) / rx;
+          const ny = (point[1] - cy) / ry;
+          const radius = Math.sqrt(nx * nx + ny * ny);
+          const error = Math.abs(radius - 1);
+
+          sumError += error;
+          maxError = Math.max(maxError, error);
+
+          if (radius < 0.68) insideCenter++;
+
+          const q = nx >= 0
+            ? (ny >= 0 ? 0 : 1)
+            : (ny >= 0 ? 3 : 2);
+          quadrants[q]++;
+        }
+
+        const meanError = sumError / points.length;
+        const quadrantMin = Math.max(2, points.length * 0.08);
+        const quadrantsCovered = quadrants.every((count) => count >= quadrantMin);
+        const centerRatio = insideCenter / points.length;
+
+        if (meanError <= 0.28 && maxError <= 0.78 && quadrantsCovered && centerRatio <= 0.26) {
+          return {
+            type: "ellipse",
+            geom: {
+              x1: Math.round(minX * 10) / 10,
+              y1: Math.round(minY * 10) / 10,
+              x2: Math.round(maxX * 10) / 10,
+              y2: Math.round(maxY * 10) / 10
+            }
+          };
+        }
+
+        return null;
+      }
+
+      function rectangleFitScore(points, bounds) {
+        const { minX, minY, maxX, maxY, width, height } = bounds;
+        const minSide = Math.max(1, Math.min(width, height));
+        let total = 0;
+
+        for (const point of points) {
+          const [x, y] = point;
+          total += Math.min(
+            Math.abs(x - minX),
+            Math.abs(x - maxX),
+            Math.abs(y - minY),
+            Math.abs(y - maxY)
+          );
+        }
+
+        return total / points.length / minSide;
+      }
+
+      function ellipseFitScore(points, bounds) {
+        const { minX, minY, width, height } = bounds;
+        const cx = minX + width / 2;
+        const cy = minY + height / 2;
+        const rx = width / 2 || 1;
+        const ry = height / 2 || 1;
+
+        let total = 0;
+        let centerPenalty = 0;
+
+        for (const point of points) {
+          const nx = (point[0] - cx) / rx;
+          const ny = (point[1] - cy) / ry;
+          const radius = Math.sqrt(nx * nx + ny * ny);
+          total += Math.abs(radius - 1);
+          if (radius < 0.7) centerPenalty += 0.5;
+        }
+
+        return (total + centerPenalty) / points.length;
+      }
+
+      function chooseClosedShapeCandidate(points, bounds, rectangle, ellipse) {
+        const corners = cornerEvidence(points);
+        const rectScore = rectangleFitScore(points, bounds);
+        const ellScore = ellipseFitScore(points, bounds);
+        const straightEvidence = rectangleStraightEdgeEvidence(points, bounds);
+        const strongRectangleEvidence =
+          corners >= 3 &&
+          straightEvidence.axisRatio >= 0.50 &&
+          straightEvidence.sidesWithStraightRuns >= 3;
+
+        if (rectangle && !ellipse) {
+          if (strongRectangleEvidence && rectScore < ellScore * 0.72) {
+            return rectangle;
+          }
+
+          return null;
+        }
+
+        if (ellipse && !rectangle) return ellipse;
+        if (!rectangle && !ellipse) return null;
+
+        if (!strongRectangleEvidence) return ellipse;
+        if (rectScore < ellScore * 0.62) return rectangle;
+
+        return ellipse;
+      }
+
+      function recognizeSmartShape(points) {
+        const simplified = simplifyPoints(points, 3.5);
+        if (!simplified || simplified.length < 2 || pathLength(simplified) < 10) return null;
+
+        const bounds = pointBounds(simplified);
+
+        const line = recognizeLine(simplified, bounds);
+        if (line) return line;
+
+        const rectangle = recognizeRectangle(simplified, bounds);
+        const ellipse = recognizeEllipse(simplified, bounds);
+        const closedShape = chooseClosedShapeCandidate(simplified, bounds, rectangle, ellipse);
+        if (closedShape) return closedShape;
+
+        return null;
+      }
+
+      function recognizeCurve(points) {
+        const simplified = simplifyPoints(points, 3.5);
+        if (!simplified || simplified.length < 4) return null;
+
+        const bounds = pointBounds(simplified);
+        const length = pathLength(simplified);
+        const diag = Math.hypot(bounds.width, bounds.height) || 1;
+        const direct = Math.hypot(
+          simplified[simplified.length - 1][0] - simplified[0][0],
+          simplified[simplified.length - 1][1] - simplified[0][1]
+        );
+
+        if (length < 34 || diag < 22) return null;
+        if (closedness(simplified, bounds) < 0.24) return null;
+
+        const directness = direct / length;
+        if (directness < 0.34 || directness > 0.88) return null;
+
+        let sharpTurns = 0;
+        let directionChanges = 0;
+        let totalAbsTurn = 0;
+        let prevAngle = null;
+        let prevTurnSign = 0;
+        let segmentCount = 0;
+
+        for (let i = 1; i < simplified.length; i++) {
+          const dx = simplified[i][0] - simplified[i - 1][0];
+          const dy = simplified[i][1] - simplified[i - 1][1];
+          const segLength = Math.hypot(dx, dy);
+          if (segLength < 2) continue;
+
+          const angle = Math.atan2(dy, dx);
+
+          if (prevAngle !== null) {
+            let delta = angle - prevAngle;
+            while (delta > Math.PI) delta -= Math.PI * 2;
+            while (delta < -Math.PI) delta += Math.PI * 2;
+
+            totalAbsTurn += Math.abs(delta);
+
+            if (Math.abs(delta) > 1.15) {
+              sharpTurns++;
+            }
+
+            const sign = delta > 0.24 ? 1 : delta < -0.24 ? -1 : 0;
+            if (sign && prevTurnSign && sign !== prevTurnSign) {
+              directionChanges++;
+            }
+            if (sign) prevTurnSign = sign;
+          }
+
+          prevAngle = angle;
+          segmentCount++;
+        }
+
+        if (segmentCount < 3) return null;
+
+        const sharpTurnRatio = sharpTurns / segmentCount;
+        const directionChangeRatio = directionChanges / segmentCount;
+        const meanAbsTurn = totalAbsTurn / Math.max(1, segmentCount - 1);
+
+        if (sharpTurnRatio > 0.16 || directionChangeRatio > 0.22 || meanAbsTurn > 0.82) return null;
+
+        const pointsForCurve = curveRenderablePoints(simplified);
+        if (pointsForCurve.length < 3) return null;
+
+        return {
+          type: "curve",
+          geom: {
+            points: pointsForCurve.map(roundPoint)
+          }
+        };
+      }
+
+      function smartShapeFromStroke(strokeShape) {
+        const recognized = recognizeSmartShape(strokeShape.geom.points) || recognizeCurve(strokeShape.geom.points);
+        if (!recognized) return strokeShape;
+
+        const shape = {
+          id: strokeShape.id,
+          type: recognized.type,
+          geom: recognized.geom,
+          options: {
+            ...strokeShape.options,
+            seed: newSeed()
+          },
+          drawable: null
+        };
+
+        shape.drawable = buildDrawable(shape);
+        return shape;
+      }
+
+      function shapeContainsPoint(shape, point, padding = 8) {
+        if (shape.type === "rectangle") {
+          const box = normalizedBox(shape.geom);
+          return (
+            point[0] >= box.x - padding &&
+            point[0] <= box.x + box.width + padding &&
+            point[1] >= box.y - padding &&
+            point[1] <= box.y + box.height + padding
+          );
+        }
+
+        if (shape.type === "ellipse") {
+          const box = normalizedBox(shape.geom);
+          const rx = Math.max(1, box.width / 2 + padding);
+          const ry = Math.max(1, box.height / 2 + padding);
+          const cx = box.x + box.width / 2;
+          const cy = box.y + box.height / 2;
+          const nx = (point[0] - cx) / rx;
+          const ny = (point[1] - cy) / ry;
+          return nx * nx + ny * ny <= 1;
+        }
+
+        return false;
+      }
+
+      function targetShapeBounds(shape) {
+        if (shape.type === "rectangle" || shape.type === "ellipse") {
+          return normalizedBox(shape.geom);
+        }
+        return null;
+      }
+
+      function smartFillColor() {
+        return controls.strokeColor.value;
+      }
+
+      function fillStrokeFeatures(points) {
+        let segmentCount = 0;
+        let turnCount = 0;
+        let sharpTurns = 0;
+        let alternations = 0;
+        let prevAngle = null;
+        let prevTurnSign = 0;
+
+        for (let i = 1; i < points.length; i++) {
+          const dx = points[i][0] - points[i - 1][0];
+          const dy = points[i][1] - points[i - 1][1];
+          const segLength = Math.hypot(dx, dy);
+          if (segLength < 2) continue;
+
+          const angle = Math.atan2(dy, dx);
+
+          if (prevAngle !== null) {
+            let delta = angle - prevAngle;
+            while (delta > Math.PI) delta -= Math.PI * 2;
+            while (delta < -Math.PI) delta += Math.PI * 2;
+
+            const absTurn = Math.abs(delta);
+            if (absTurn > 0.28) turnCount++;
+            if (absTurn > 0.9 && absTurn < 2.5) sharpTurns++;
+
+            const turnSign = delta > 0.18 ? 1 : delta < -0.18 ? -1 : 0;
+            if (turnSign && prevTurnSign && turnSign !== prevTurnSign) {
+              alternations++;
+            }
+            if (turnSign) {
+              prevTurnSign = turnSign;
+            }
+          }
+
+          prevAngle = angle;
+          segmentCount++;
+        }
+
+        return {
+          segmentCount,
+          turnCount,
+          sharpTurns,
+          alternations
+        };
+      }
+
+      function inferSmartFillStyle(points) {
+        if (!points || points.length < 5) return null;
+
+        const features = fillStrokeFeatures(points);
+        if (features.segmentCount < 3) return null;
+
+        const sharpRatio = features.sharpTurns / features.segmentCount;
+        const alternationRatio = features.alternations / features.segmentCount;
+
+        if (sharpRatio >= 0.24 && alternationRatio >= 0.12) {
+          return "zigzag";
+        }
+
+        return "hachure";
+      }
+
+      function chooseSmartFillStyle(target, points) {
+        const inferred = inferSmartFillStyle(points);
+        if (!inferred) return null;
+
+        if (!target.options.fill) {
+          return inferred;
+        }
+
+        if (target.options.fillStyle !== "cross-hatch" && target.options.fillStyle !== "solid") {
+          return "cross-hatch";
+        }
+
+        return "solid";
+      }
+
+      function fillStrokeLooksIntentional(points, targetShape) {
+        if (!points || points.length < 10) return false;
+
+        const targetBounds = targetShapeBounds(targetShape);
+        if (!targetBounds) return false;
+
+        const strokeBounds = pointBounds(points);
+        const strokeLength = pathLength(points);
+        const strokeDiag = Math.hypot(strokeBounds.width, strokeBounds.height);
+        const targetDiag = Math.hypot(targetBounds.width, targetBounds.height) || 1;
+        const widthRatio = strokeBounds.width / Math.max(1, targetBounds.width);
+        const heightRatio = strokeBounds.height / Math.max(1, targetBounds.height);
+        const density = strokeLength / Math.max(1, strokeDiag);
+        const features = fillStrokeFeatures(points);
+
+        if (strokeLength < Math.max(52, targetDiag * 0.55)) return false;
+        if (strokeDiag < Math.max(20, targetDiag * 0.22)) return false;
+        if (strokeDiag > targetDiag * 1.03) return false;
+
+        if (widthRatio < 0.28 && heightRatio < 0.28) return false;
+        if (widthRatio < 0.16 || heightRatio < 0.16) return false;
+
+        if (density < 1.95) return false;
+        if (features.segmentCount < 8) return false;
+        if (features.turnCount < 4) return false;
+
+        const isZigzagLike =
+          features.sharpTurns >= 3 &&
+          features.alternations >= 2;
+
+        const isHachureLike =
+          features.turnCount >= 6 &&
+          density >= 2.25 &&
+          (widthRatio >= 0.34 || heightRatio >= 0.34);
+
+        return isZigzagLike || isHachureLike;
+      }
+
+      function findFillTargetForStroke(points) {
+        let bestShape = null;
+        let bestScore = 0;
+
+        for (let i = shapes.length - 1; i >= 0; i--) {
+          const shape = shapes[i];
+          if (shape.type !== "rectangle" && shape.type !== "ellipse") continue;
+
+          let inside = 0;
+          for (const point of points) {
+            if (shapeContainsPoint(shape, point, 10)) {
+              inside++;
+            }
+          }
+
+          const ratio = inside / points.length;
+          if (ratio > 0.92 && ratio > bestScore) {
+            bestScore = ratio;
+            bestShape = shape;
+          }
+        }
+
+        return bestShape;
+      }
+
+      function tryApplySmartFill(strokeShape) {
+        const points = simplifyPoints(strokeShape.geom.points, 3.5);
+        if (!points || points.length < 10) return false;
+
+        const target = findFillTargetForStroke(points);
+        if (!target) return false;
+
+        if (!fillStrokeLooksIntentional(points, target)) return false;
+
+        const fillStyle = chooseSmartFillStyle(target, points);
+        if (!fillStyle) return false;
+
+        recordHistory();
+        target.options.fill = smartFillColor();
+        target.options.fillStyle = fillStyle;
+        target.drawable = buildDrawable(target);
+        save();
+        net.send({ type: "update", shape: serializeShape(target) });
+        redraw();
+        return true;
+      }
+
+      function drawBackground() {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = "#f7f2e8";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = "#3a3328";
+        const count = Math.floor((canvas.width * canvas.height) / 52000);
+        let seed = 2166136261;
+
+        for (let i = 0; i < count; i++) {
+          seed ^= i + canvas.width;
+          seed = Math.imul(seed, 16777619);
+          const x = Math.abs(seed % canvas.width);
+
+          seed ^= i + canvas.height;
+          seed = Math.imul(seed, 16777619);
+          const y = Math.abs(seed % canvas.height);
+
+          ctx.fillRect(x, y, 1, 1);
+        }
+
+        ctx.restore();
+      }
+
+      function redraw(previewShape = null) {
+        drawBackground();
+
+        for (const shape of orderedShapes()) {
+          if (shape.type === "text") {
+            drawTextShape(ctx, shape);
+            continue;
+          }
+
+          if (!shape.drawable) {
+            shape.drawable = buildDrawable(shape);
+          }
+
+          if (shape.drawable) {
+            rc.draw(shape.drawable);
+          }
+        }
+
+        drawSelectionOverlay();
+
+        if (previewShape) {
+          if (previewShape.type === "text") {
+            drawTextShape(ctx, previewShape);
+            return;
+          }
+
+          if (previewShape.type === "select-box") {
+            drawSelectMarquee(previewShape);
+            return;
+          }
+
+          const previewDrawable = buildDrawable(previewShape);
+          if (previewDrawable) {
+            rc.draw(previewDrawable);
+          }
+        }
+      }
+
+      // Strip the cached `drawable` (and any transient fields) before sending
+      // a shape over the wire or to localStorage.
+      function serializeShape(shape) {
+        return {
+          id: shape.id,
+          type: shape.type,
+          geom: shape.geom,
+          options: shape.options
+        };
+      }
+
+      function save() {
+        try {
+          const serializable = shapes.map(serializeShape);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+        } catch {
+          // Drawing still works without persistence.
+        }
+      }
+
+      function cloneShapeData(shape) {
+        return {
+          id: shape.id,
+          type: shape.type,
+          geom: JSON.parse(JSON.stringify(shape.geom)),
+          options: JSON.parse(JSON.stringify(shape.options))
+        };
+      }
+
+      function snapshotShapes() {
+        return shapes.map(cloneShapeData);
+      }
+
+      function hydrateShape(shapeData) {
+        const shape = {
+          id: typeof shapeData.id === "string" && shapeData.id ? shapeData.id : newId(),
+          type: shapeData.type,
+          geom: shapeData.geom,
+          options: shapeData.options || currentOptions(newSeed()),
+          drawable: null
+        };
+
+        shape.drawable = buildDrawable(shape);
+        return shape;
+      }
+
+      function restoreSnapshot(snapshot) {
+        shapes.length = 0;
+
+        for (const shapeData of snapshot) {
+          const shape = hydrateShape(shapeData);
+          if (isMeaningful(shape)) {
+            shapes.push(shape);
+          }
+        }
+
+        save();
+        redraw();
+      }
+
+      function recordHistory() {
+        historyStack.push(snapshotShapes());
+        if (historyStack.length > 100) {
+          historyStack.shift();
+        }
+      }
+
+      function load() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return;
+
+          for (const item of parsed) {
+            if (!item || !item.type || !item.geom || !item.options) continue;
+
+            const shape = hydrateShape(item);
+
+            if (isMeaningful(shape)) {
+              shapes.push(shape);
+            }
+          }
+
+          historyStack.length = 0;
+        } catch {
+          // Corrupt saved data should not break the canvas.
+        }
+      }
+
+      // ===== Multiplayer networking =====
+      // Shared state lives in a Cloudflare Durable Object (see src/index.ts).
+      // We send granular ops (add/update/remove/replace/clear) and apply remote
+      // ops locally without re-broadcasting them.
+      const net = (() => {
+        const roomName = new URLSearchParams(window.location.search).get("room") || "main";
+        let ws = null;
+        let connected = false;
+        let reconnectTimer = null;
+
+        function setStatus(isConnected) {
+          connected = isConnected;
+          statusDot.classList.toggle("connected", isConnected);
+          if (!isConnected) {
+            presenceEl.textContent = "Reconnecting…";
+          }
+        }
+
+        function setPresence(count) {
+          presenceEl.textContent = `${count} ${count === 1 ? "person" : "people"} here`;
+        }
+
+        function connect() {
+          const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+          const url = `${protocol}//${window.location.host}/ws?room=${encodeURIComponent(roomName)}`;
+          ws = new WebSocket(url);
+
+          ws.onopen = () => {
+            setStatus(true);
+            if (reconnectTimer) {
+              clearTimeout(reconnectTimer);
+              reconnectTimer = null;
+            }
+          };
+
+          ws.onmessage = (event) => {
+            try {
+              handle(JSON.parse(event.data));
+            } catch {
+              // ignore malformed
+            }
+          };
+
+          ws.onclose = () => {
+            setStatus(false);
+            reconnectTimer = setTimeout(connect, 1000);
+          };
+
+          ws.onerror = () => {
+            // onclose handles reconnection
+          };
+        }
+
+        function handle(msg) {
+          switch (msg.type) {
+            case "sync":
+              applyRemoteReplace(msg.shapes);
+              setPresence(msg.count);
+              break;
+            case "count":
+              setPresence(msg.count);
+              break;
+            case "add":
+            case "update":
+              applyRemoteUpsert(msg.shape);
+              break;
+            case "remove":
+              applyRemoteRemove(msg.id);
+              break;
+            case "replace":
+              applyRemoteReplace(msg.shapes);
+              break;
+            case "clear":
+              applyRemoteClear();
+              break;
+          }
+        }
+
+        return {
+          connect,
+          send(msg) {
+            if (connected && ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(msg));
+            }
+          }
+        };
+      })();
+
+      // Apply an incoming add/update: replace the shape with this id, or append.
+      function applyRemoteUpsert(shapeData) {
+        if (!shapeData || typeof shapeData.id !== "string") return;
+        const shape = hydrateShape(shapeData);
+        if (!isMeaningful(shape)) return;
+
+        const index = shapes.findIndex((s) => s.id === shape.id);
+        if (index >= 0) {
+          shapes[index] = shape;
+        } else {
+          shapes.push(shape);
+        }
+        save();
+        redraw();
+      }
+
+      function applyRemoteRemove(id) {
+        if (typeof id !== "string") return;
+        const index = shapes.findIndex((s) => s.id === id);
+        if (index < 0) return;
+        shapes.splice(index, 1);
+        selectedIds = selectedIds.filter((sid) => sid !== id);
+        save();
+        redraw();
+      }
+
+      function applyRemoteReplace(list) {
+        shapes.length = 0;
+        if (Array.isArray(list)) {
+          for (const item of list) {
+            if (!item || !item.type || !item.geom || !item.options) continue;
+            const shape = hydrateShape(item);
+            if (isMeaningful(shape)) {
+              shapes.push(shape);
+            }
+          }
+        }
+        clearSelection();
+        save();
+        redraw();
+      }
+
+      function applyRemoteClear() {
+        shapes.length = 0;
+        clearSelection();
+        save();
+        redraw();
+      }
+
+      function resize() {
+        dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 4));
+        viewWidth = window.innerWidth;
+        viewHeight = window.innerHeight;
+
+        canvas.style.width = `${viewWidth}px`;
+        canvas.style.height = `${viewHeight}px`;
+        canvas.width = Math.round(viewWidth * dpr);
+        canvas.height = Math.round(viewHeight * dpr);
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        rc = rough.canvas(canvas);
+
+        redraw();
+      }
+
+      function canvasPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      }
+
+      function translateGeom(geom, dx, dy) {
+        if (geom.points) {
+          return {
+            points: geom.points.map((point) => [
+              Math.round((point[0] + dx) * 10) / 10,
+              Math.round((point[1] + dy) * 10) / 10
+            ])
+          };
+        }
+
+        if (Object.prototype.hasOwnProperty.call(geom, "text")) {
+          return {
+            ...geom,
+            x: Math.round((geom.x + dx) * 10) / 10,
+            y: Math.round((geom.y + dy) * 10) / 10
+          };
+        }
+
+        return {
+          x1: Math.round((geom.x1 + dx) * 10) / 10,
+          y1: Math.round((geom.y1 + dy) * 10) / 10,
+          x2: Math.round((geom.x2 + dx) * 10) / 10,
+          y2: Math.round((geom.y2 + dy) * 10) / 10
+        };
+      }
+
+      function shapeBounds(shape) {
+        if (shape.type === "text") {
+          return textBounds(shape);
+        }
+
+        if (shape.geom.points) {
+          const bounds = pointBounds(shape.geom.points);
+          return {
+            x: bounds.minX,
+            y: bounds.minY,
+            width: bounds.width,
+            height: bounds.height
+          };
+        }
+
+        return normalizedBox(shape.geom);
+      }
+
+      function expandedBoxContains(box, point, padding = 8) {
+        return (
+          point.x >= box.x - padding &&
+          point.x <= box.x + box.width + padding &&
+          point.y >= box.y - padding &&
+          point.y <= box.y + box.height + padding
+        );
+      }
+
+      function distanceToPolyline(point, points) {
+        if (!points || points.length < 2) return Infinity;
+
+        let best = Infinity;
+
+        for (let i = 1; i < points.length; i++) {
+          const a = points[i - 1];
+          const b = points[i];
+          const dx = b[0] - a[0];
+          const dy = b[1] - a[1];
+          const lengthSquared = dx * dx + dy * dy;
+
+          let t = 0;
+          if (lengthSquared > 0) {
+            t = ((point.x - a[0]) * dx + (point.y - a[1]) * dy) / lengthSquared;
+            t = Math.max(0, Math.min(1, t));
+          }
+
+          const x = a[0] + dx * t;
+          const y = a[1] + dy * t;
+          best = Math.min(best, Math.hypot(point.x - x, point.y - y));
+        }
+
+        return best;
+      }
+
+      function pointInShapeForDragging(shape, point) {
+        const padding = Math.max(8, (shape.options.strokeWidth || 2) * 3);
+
+        if (shape.type === "text") {
+          return expandedBoxContains(textBounds(shape), point, 6);
+        }
+
+        if (shape.type === "rectangle") {
+          const box = normalizedBox(shape.geom);
+          if (!expandedBoxContains(box, point, padding)) return false;
+
+          if (shape.options.fill) return true;
+
+          const edgeDistance = Math.min(
+            Math.abs(point.x - box.x),
+            Math.abs(point.x - (box.x + box.width)),
+            Math.abs(point.y - box.y),
+            Math.abs(point.y - (box.y + box.height))
+          );
+
+          return edgeDistance <= padding;
+        }
+
+        if (shape.type === "ellipse") {
+          const box = normalizedBox(shape.geom);
+          const rx = Math.max(1, box.width / 2);
+          const ry = Math.max(1, box.height / 2);
+          const cx = box.x + rx;
+          const cy = box.y + ry;
+          const nx = (point.x - cx) / rx;
+          const ny = (point.y - cy) / ry;
+          const radius = Math.sqrt(nx * nx + ny * ny);
+
+          if (shape.options.fill && radius <= 1.08) return true;
+
+          const tolerance = padding / Math.max(1, Math.min(rx, ry));
+          return Math.abs(radius - 1) <= tolerance;
+        }
+
+        if (shape.type === "line") {
+          const g = shape.geom;
+          return distancePointToLine(
+            [point.x, point.y],
+            [g.x1, g.y1],
+            [g.x2, g.y2]
+          ) <= padding;
+        }
+
+        if (shape.geom.points) {
+          const box = shapeBounds(shape);
+          if (!expandedBoxContains(box, point, padding)) return false;
+          return distanceToPolyline(point, shape.geom.points) <= padding;
+        }
+
+        return false;
+      }
+
+      function hitTestShape(point) {
+        const entries = orderedShapeEntries();
+
+        for (let i = entries.length - 1; i >= 0; i--) {
+          const { shape, index } = entries[i];
+          if (pointInShapeForDragging(shape, point)) {
+            return { shape, index };
+          }
+        }
+
+        return null;
+      }
+
+      function autosizeTextEditor(editor) {
+        editor.style.height = "auto";
+        editor.style.width = "auto";
+        editor.style.height = Math.max(42, editor.scrollHeight + 2) + "px";
+        editor.style.width = Math.max(160, editor.scrollWidth + 18) + "px";
+      }
+
+      function openTextEditor(point) {
+        const editor = document.createElement("textarea");
+        editor.className = "text-editor";
+        editor.spellcheck = false;
+        editor.placeholder = "Text";
+        editor.style.left = `${Math.round(point.x)}px`;
+        editor.style.top = `${Math.round(point.y)}px`;
+        document.body.appendChild(editor);
+
+        const commit = () => {
+          if (!editor.parentNode) return;
+
+          const text = editor.value.trimEnd();
+          editor.remove();
+
+          if (!text.trim()) {
+            redraw();
+            return;
+          }
+
+          const shape = {
+            id: newId(),
+            type: "text",
+            geom: {
+              x: Math.round(point.x * 10) / 10,
+              y: Math.round(point.y * 10) / 10,
+              text,
+              fontSize: 28
+            },
+            options: currentOptions(newSeed()),
+            drawable: null
+          };
+
+          recordHistory();
+          shapes.push(shape);
+          save();
+          net.send({ type: "add", shape: serializeShape(shape) });
+          redraw();
+        };
+
+        const cancel = () => {
+          if (!editor.parentNode) return;
+          editor.remove();
+          redraw();
+        };
+
+        editor.addEventListener("input", () => autosizeTextEditor(editor));
+        editor.addEventListener("keydown", (event) => {
+          event.stopPropagation();
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancel();
+          }
+
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            commit();
           }
         });
-        canvasEl.appendChild(cell);
-        row.push(cell);
+        editor.addEventListener("blur", commit);
+
+        requestAnimationFrame(() => {
+          editor.focus();
+          autosizeTextEditor(editor);
+        });
       }
-      cells.push(row);
-    }
 
-    // ========== BUILD PALETTE ==========
-    PALETTE.forEach((color) => {
-      const btn = document.createElement('button');
-      btn.className = 'color-btn';
-      btn.style.backgroundColor = color;
-      btn.dataset.color = color;
-      btn.addEventListener('click', () => selectColor(color));
-      paletteEl.appendChild(btn);
-    });
+      function pushStrokePoint(point) {
+        if (!activeDrag || activeDrag.tool !== "smart") return;
 
-    function selectColor(color) {
-      selectedColor = color;
-      document.querySelectorAll('.color-btn').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.color === color);
-      });
-    }
-    selectColor(selectedColor);
-
-    // ========== WEBSOCKET ==========
-    function connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws?room=${encodeURIComponent(roomName)}`;
-
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        isConnected = true;
-        updateStatus(true);
-        if (reconnectTimer) {
-          clearTimeout(reconnectTimer);
-          reconnectTimer = null;
+        const last = activeDrag.points[activeDrag.points.length - 1];
+        if (!last || Math.hypot(point.x - last[0], point.y - last[1]) >= 3.5) {
+          activeDrag.points.push([point.x, point.y]);
         }
-      };
+      }
 
-      ws.onmessage = (event) => {
+      function previewShape() {
+        if (!activeDrag) return null;
+
+        if (activeDrag.tool === "smart") {
+          return makeShape(
+            "smart",
+            activeDrag.start,
+            activeDrag.current,
+            activeDrag.points,
+            activeDrag.options
+          );
+        }
+
+        if (activeDrag.tool === "select") {
+          return {
+            id: "select-box",
+            type: "select-box",
+            geom: {
+              x1: Math.round(activeDrag.start.x * 10) / 10,
+              y1: Math.round(activeDrag.start.y * 10) / 10,
+              x2: Math.round(activeDrag.current.x * 10) / 10,
+              y2: Math.round(activeDrag.current.y * 10) / 10
+            },
+            options: {}
+          };
+        }
+
+        return null;
+      }
+
+      function onPointerDown(event) {
+        if (event.button !== undefined && event.button !== 0) return;
+
+        event.preventDefault();
+        canvas.setPointerCapture(event.pointerId);
+
+        const point = canvasPoint(event);
+
+        if (currentTool === "text") {
+          openTextEditor(point);
+          return;
+        }
+
+        if (currentTool === "hand") {
+          const hit = hitTestShape(point);
+
+          if (!hit) {
+            activeDrag = null;
+            return;
+          }
+
+          const draggingSelection = selectedIds.includes(hit.shape.id) && selectedIds.length > 0;
+          const dragShapes = draggingSelection
+            ? shapes.filter((shape) => selectedIds.includes(shape.id))
+            : [hit.shape];
+
+          activeDrag = {
+            pointerId: event.pointerId,
+            tool: "hand",
+            start: point,
+            current: point,
+            dragShapes,
+            originalGeoms: dragShapes.map((shape) => ({
+              id: shape.id,
+              geom: JSON.parse(JSON.stringify(shape.geom))
+            })),
+            moved: false,
+            historyRecorded: false
+          };
+
+          document.body.classList.add("dragging-shape");
+          return;
+        }
+
+        if (currentTool === "select") {
+          activeDrag = {
+            pointerId: event.pointerId,
+            tool: "select",
+            start: point,
+            current: point
+          };
+          redraw(previewShape());
+          return;
+        }
+
+        const options = currentOptions(newSeed());
+
+        activeDrag = {
+          pointerId: event.pointerId,
+          tool: "smart",
+          start: point,
+          current: point,
+          options,
+          points: [[point.x, point.y]]
+        };
+
+        redraw(previewShape());
+      }
+
+      function onPointerMove(event) {
+        if (!activeDrag || activeDrag.pointerId !== event.pointerId) return;
+
+        event.preventDefault();
+
+        if (activeDrag.tool === "hand") {
+          const point = canvasPoint(event);
+          const dx = point.x - activeDrag.start.x;
+          const dy = point.y - activeDrag.start.y;
+
+          if (!activeDrag.historyRecorded && Math.hypot(dx, dy) > 1.5) {
+            recordHistory();
+            activeDrag.historyRecorded = true;
+          }
+
+          activeDrag.current = point;
+          activeDrag.moved = Math.hypot(dx, dy) > 1.5;
+
+          const originalById = new Map(activeDrag.originalGeoms.map((item) => [item.id, item.geom]));
+          for (const shape of activeDrag.dragShapes) {
+            const originalGeom = originalById.get(shape.id);
+            shape.geom = translateGeom(originalGeom, dx, dy);
+            shape.drawable = buildDrawable(shape);
+          }
+
+          redraw();
+          return;
+        }
+
+        if (activeDrag.tool === "select") {
+          activeDrag.current = canvasPoint(event);
+          redraw(previewShape());
+          return;
+        }
+
+        const events =
+          typeof event.getCoalescedEvents === "function"
+            ? event.getCoalescedEvents()
+            : [event];
+
+        for (const e of events) {
+          const point = canvasPoint(e);
+          activeDrag.current = point;
+          pushStrokePoint(point);
+        }
+
+        redraw(previewShape());
+      }
+
+      function finishPointer(event) {
+        if (!activeDrag || activeDrag.pointerId !== event.pointerId) return;
+
+        event.preventDefault();
+
         try {
-          const msg = JSON.parse(event.data);
-          handleMessage(msg);
+          canvas.releasePointerCapture(event.pointerId);
         } catch {
-          // ignore malformed
+          // Pointer capture may already be released.
         }
-      };
 
-      ws.onclose = () => {
-        isConnected = false;
-        updateStatus(false);
-        // Auto-reconnect
-        reconnectTimer = setTimeout(connect, 1000);
-      };
-
-      ws.onerror = () => {
-        // Let onclose handle reconnection
-      };
-    }
-
-    function handleMessage(msg) {
-      if (msg.type === 'sync') {
-        // Full state sync
-        applyPixels(msg.pixels);
-        updatePresence(msg.count);
-      } else if (msg.type === 'pixel') {
-        setPixel(msg.x, msg.y, msg.color);
-      } else if (msg.type === 'count') {
-        updatePresence(msg.count);
-      } else if (msg.type === 'clear') {
-        clearCanvasLocal();
-      }
-    }
-
-    function paintPixel(x, y, color) {
-      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
-      const msg = { type: 'pixel', x, y, color };
-      ws.send(JSON.stringify(msg));
-    }
-
-    function applyPixels(pixels) {
-      clearCanvasLocal();
-      for (const [key, color] of Object.entries(pixels)) {
-        const [x, y] = key.split(',').map(Number);
-        if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-          setPixel(x, y, color);
+        if (activeDrag.tool === "hand") {
+          const moved = activeDrag.moved;
+          const dragShapes = activeDrag.dragShapes;
+          activeDrag = null;
+          document.body.classList.remove("dragging-shape");
+          if (moved) {
+            save();
+            for (const shape of dragShapes) {
+              net.send({ type: "update", shape: serializeShape(shape) });
+            }
+          }
+          redraw();
+          return;
         }
-      }
-    }
 
-    function setPixel(x, y, color) {
-      if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-        cells[y][x].style.backgroundColor = color;
-      }
-    }
-
-    function clearCanvasLocal() {
-      for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-          cells[y][x].style.backgroundColor = '#2a2a4a';
+        if (activeDrag.tool === "select") {
+          const shape = previewShape();
+          activeDrag = null;
+          if (shape && isMeaningful(shape)) {
+            applySelectionBox(shape);
+          } else {
+            clearSelection();
+          }
+          redraw();
+          return;
         }
+
+        let shape = previewShape();
+        activeDrag = null;
+
+        if (shape && shape.type === "smart") {
+          if (tryApplySmartFill(shape)) {
+            return;
+          }
+          shape = smartShapeFromStroke(shape);
+        }
+
+        if (isMeaningful(shape)) {
+          recordHistory();
+          shape.drawable = shape.drawable || buildDrawable(shape);
+          shapes.push(shape);
+          save();
+          net.send({ type: "add", shape: serializeShape(shape) });
+        }
+
+        redraw();
       }
-    }
 
-    function updateStatus(connected) {
-      statusDot.classList.toggle('connected', connected);
-      statusText.textContent = connected ? 'Connected' : 'Disconnected — reconnecting...';
-    }
+      function cancelPointer(event) {
+        if (!activeDrag || activeDrag.pointerId !== event.pointerId) return;
+        activeDrag = null;
+        document.body.classList.remove("dragging-shape");
+        redraw();
+      }
 
-    function updatePresence(count) {
-      presenceEl.textContent = `${count} ${count === 1 ? 'person' : 'people'} here`;
-    }
+      function undo() {
+        if (!historyStack.length) {
+          if (!shapes.length) return;
+          shapes.pop();
+          save();
+          net.send({ type: "replace", shapes: shapes.map(serializeShape) });
+          redraw();
+          return;
+        }
 
-    // ========== CONTROLS ==========
-    clearBtn.addEventListener('click', () => {
-      if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(JSON.stringify({ type: 'clear' }));
-    });
+        const snapshot = historyStack.pop();
+        restoreSnapshot(snapshot);
+        net.send({ type: "replace", shapes: shapes.map(serializeShape) });
+      }
 
-    // ========== INIT ==========
-    connect();
+      function clearAll() {
+        if (!shapes.length) return;
+        recordHistory();
+        shapes.length = 0;
+        save();
+        net.send({ type: "clear" });
+        redraw();
+      }
 
-    // Prevent accidental page leave while painting
-    window.addEventListener('beforeunload', () => {
-      if (ws) ws.close();
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-    });
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function exportPNG() {
+        canvas.toBlob((blob) => {
+          if (blob) downloadBlob(blob, "rough-drawing.png");
+        }, "image/png");
+      }
+
+      function makeSvgTextNode(shape) {
+        const ns = "http://www.w3.org/2000/svg";
+        const text = document.createElementNS(ns, "text");
+        const size = shape.geom.fontSize || 28;
+
+        text.setAttribute("x", String(shape.geom.x));
+        text.setAttribute("y", String(shape.geom.y));
+        text.setAttribute("fill", shape.options.stroke || "#222222");
+        text.setAttribute("font-family", "Excalifont, cursive");
+        text.setAttribute("font-size", String(size));
+        text.setAttribute("dominant-baseline", "text-before-edge");
+
+        const lines = textLines(shape);
+        for (let i = 0; i < lines.length; i++) {
+          const tspan = document.createElementNS(ns, "tspan");
+          tspan.setAttribute("x", String(shape.geom.x));
+          tspan.setAttribute("dy", i === 0 ? "0" : String(size * 1.15));
+          tspan.textContent = lines[i] || " ";
+          text.appendChild(tspan);
+        }
+
+        return text;
+      }
+
+      function makeSvgNode(rsvg, shape) {
+        const opts = roughOptions(shape.options, shape.type);
+
+        if (shape.type === "text") {
+          return makeSvgTextNode(shape);
+        }
+
+        if (shape.type === "rectangle") {
+          const box = normalizedBox(shape.geom);
+          return rsvg.rectangle(box.x, box.y, box.width, box.height, opts);
+        }
+
+        if (shape.type === "ellipse") {
+          const box = normalizedBox(shape.geom);
+          return rsvg.ellipse(
+            box.x + box.width / 2,
+            box.y + box.height / 2,
+            box.width,
+            box.height,
+            opts
+          );
+        }
+
+        if (shape.type === "line") {
+          const g = shape.geom;
+          return rsvg.line(g.x1, g.y1, g.x2, g.y2, opts);
+        }
+
+        if (shape.type === "curve") {
+          const points = curveRenderablePoints(shape.geom.points);
+          if (points.length < 2) return null;
+
+          return rsvg.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.85),
+            bowing: Math.min(opts.bowing, 0.7),
+            curveFitting: 0.82,
+            curveTightness: 0.18
+          });
+        }
+
+        if (shape.type === "smart") {
+          const points = freehandRenderablePoints(shape.geom.points);
+          if (points.length < 2) return null;
+
+          return rsvg.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.9),
+            bowing: Math.min(opts.bowing, 0.8),
+            curveFitting: 0.85,
+            curveTightness: 0.15
+          });
+        }
+
+        return null;
+      }
+
+      function exportSVG() {
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("xmlns", ns);
+        svg.setAttribute("width", String(viewWidth));
+        svg.setAttribute("height", String(viewHeight));
+        svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
+
+        const defs = document.createElementNS(ns, "defs");
+        const style = document.createElementNS(ns, "style");
+        style.textContent = "@font-face { font-family: 'Excalifont'; src: url('https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2') format('woff2'); }";
+        defs.appendChild(style);
+        svg.appendChild(defs);
+
+        const bg = document.createElementNS(ns, "rect");
+        bg.setAttribute("width", "100%");
+        bg.setAttribute("height", "100%");
+        bg.setAttribute("fill", "#f7f2e8");
+        svg.appendChild(bg);
+
+        const rsvg = rough.svg(svg);
+
+        for (const shape of orderedShapes()) {
+          const node = makeSvgNode(rsvg, shape);
+          if (node) svg.appendChild(node);
+        }
+
+        const xml = new XMLSerializer().serializeToString(svg);
+        const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`], {
+          type: "image/svg+xml;charset=utf-8"
+        });
+
+        downloadBlob(blob, "rough-drawing.svg");
+      }
+
+      function refreshControlLabels() {
+        controls.roughnessValue.textContent = Number(controls.roughness.value).toFixed(1);
+        controls.bowingValue.textContent = Number(controls.bowing.value).toFixed(1);
+        controls.strokeWidthValue.textContent = Number(controls.strokeWidth.value).toFixed(1);
+      }
+
+      document.querySelectorAll(".tool").forEach((button) => {
+        button.addEventListener("click", () => {
+          currentTool = button.dataset.tool;
+          if (currentTool === "smart") {
+            clearSelection();
+          }
+          document.body.classList.toggle("hand-mode", currentTool === "hand");
+          document.body.classList.toggle("text-mode", currentTool === "text");
+          document.body.classList.toggle("select-mode", currentTool === "select");
+
+          document.querySelectorAll(".tool").forEach((b) => {
+            b.classList.toggle("active", b === button);
+          });
+
+          redraw();
+        });
+      });
+
+      [
+        controls.roughness,
+        controls.bowing,
+        controls.strokeWidth
+      ].forEach((input) => {
+        input.addEventListener("input", refreshControlLabels);
+        input.addEventListener("change", refreshControlLabels);
+      });
+
+      controls.undoBtn.addEventListener("click", undo);
+      controls.clearBtn.addEventListener("click", clearAll);
+      controls.pngBtn.addEventListener("click", exportPNG);
+      controls.svgBtn.addEventListener("click", exportSVG);
+
+      document.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+
+        if ((event.metaKey || event.ctrlKey) && key === "z" && !event.shiftKey) {
+          event.preventDefault();
+          undo();
+        }
+      });
+
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup", finishPointer);
+      canvas.addEventListener("pointercancel", cancelPointer);
+      canvas.addEventListener("lostpointercapture", () => {
+        if (activeDrag) {
+          activeDrag = null;
+          document.body.classList.remove("dragging-shape");
+          redraw();
+        }
+      });
+
+      window.addEventListener("resize", resize);
+
+      if (document.fonts && document.fonts.load) {
+        document.fonts.load("28px Excalifont")
+          .then(() => redraw())
+          .catch(() => console.warn('Excalifont failed to load; browser fallback will be used.'));
+      }
+
+      refreshControlLabels();
+      load();
+      resize();
+      net.connect();
+    })();
   </script>
 </body>
 </html>
