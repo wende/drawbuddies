@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DrawBuddies — Collaborative Canvas</title>
+  <title>Rough Smart Drawing Playground</title>
   <link rel="preload" href="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <style>
     @font-face {
@@ -35,9 +35,9 @@
       overflow: hidden;
       background:
         radial-gradient(circle at 20% 10%, rgba(255,255,255,0.55), transparent 24rem),
-        radial-gradient(circle at 80% 90%, rgba(0,0,0,0.045), transparent 22rem),
-        linear-gradient(135deg, rgba(0,0,0,0.018) 25%, transparent 25%) 0 0 / 18px 18px,
-        var(--paper);
+        radial-gradient(circle at 80% 90%, rgba(70, 110, 160, 0.025), transparent 22rem),
+        linear-gradient(135deg, rgba(70, 110, 160, 0.012) 25%, transparent 25%) 0 0 / 18px 18px,
+        #fbfdff;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
     }
@@ -177,195 +177,6 @@
       pointer-events: none;
     }
 
-    .topbar {
-      position: fixed;
-      right: 14px;
-      top: 12px;
-      z-index: 9;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      user-select: none;
-    }
-
-    .netstatus {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255, 252, 244, 0.82);
-      color: rgba(32, 31, 28, 0.74);
-      font-size: 12px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    .netstatus .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #d23b3b;
-      box-shadow: 0 0 0 0 rgba(210, 59, 59, 0.4);
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-
-    .netstatus .dot.connected {
-      background: #2f9e44;
-      box-shadow: 0 0 6px rgba(47, 158, 68, 0.7);
-    }
-
-    .avatar-button {
-      height: 32px;
-      padding: 0 13px;
-      border-radius: 999px;
-      background: rgba(255, 252, 244, 0.88);
-      box-shadow: 0 10px 26px rgba(35, 32, 25, 0.12);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    .move-hint {
-      position: fixed;
-      left: 50%;
-      top: calc(50% + 92px);
-      z-index: 7;
-      transform: translateX(-50%);
-      padding: 6px 10px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255, 252, 244, 0.76);
-      color: rgba(32, 31, 28, 0.62);
-      font-size: 12px;
-      pointer-events: none;
-      user-select: none;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .move-hint.hidden {
-      opacity: 0;
-      transform: translateX(-50%) translateY(4px);
-    }
-
-    .avatar-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 30;
-      display: grid;
-      place-items: center;
-      padding: 18px;
-      background: rgba(18, 17, 14, 0.28);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-    }
-
-    .avatar-overlay[hidden] {
-      display: none;
-    }
-
-    .avatar-dialog {
-      width: min(760px, calc(100vw - 24px));
-      max-height: calc(100vh - 24px);
-      display: grid;
-      grid-template-columns: minmax(260px, 360px) minmax(260px, 1fr);
-      gap: 12px;
-      padding: 12px;
-      overflow: auto;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: rgba(255, 252, 244, 0.94);
-      box-shadow: 0 24px 80px rgba(35, 32, 25, 0.26);
-    }
-
-    .avatar-stage {
-      position: relative;
-      overflow: hidden;
-      width: 100%;
-      max-width: 360px;
-      justify-self: center;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fbfdff;
-      aspect-ratio: 13 / 18;
-      min-height: 360px;
-    }
-
-    #avatarCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      cursor: crosshair;
-      touch-action: none;
-    }
-
-    .avatar-text-editor {
-      position: fixed;
-      z-index: 40;
-      min-width: 100px;
-      min-height: 38px;
-      padding: 4px 6px;
-      border: 1px dashed rgba(35, 32, 25, 0.45);
-      border-radius: 8px;
-      outline: none;
-      resize: both;
-      overflow: hidden;
-      background: rgba(255, 252, 244, 0.92);
-      color: var(--ink);
-      font-family: 'Excalifont', cursive;
-      font-size: 22px;
-      line-height: 1.15;
-      box-shadow: 0 10px 28px rgba(35, 32, 25, 0.12);
-    }
-
-    .avatar-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-width: 0;
-    }
-
-    .avatar-title {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 650;
-      letter-spacing: 0;
-    }
-
-    .avatar-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      padding-top: 2px;
-    }
-
-    .avatar-controls .group {
-      min-height: 32px;
-    }
-
-    .avatar-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: auto;
-      padding-top: 8px;
-    }
-
-    .primary {
-      color: #fffaf0;
-      background: var(--ink);
-      border-color: var(--ink);
-    }
-
-    button:disabled {
-      opacity: 0.48;
-      cursor: not-allowed;
-      transform: none;
-    }
-
     .text-editor {
       position: fixed;
       z-index: 20;
@@ -407,21 +218,6 @@
       input[type="range"] {
         width: 70px;
       }
-
-      .topbar {
-        left: 10px;
-        right: 10px;
-        justify-content: flex-end;
-      }
-
-      .avatar-dialog {
-        grid-template-columns: 1fr;
-        overflow: auto;
-      }
-
-      .avatar-stage {
-        min-height: 280px;
-      }
     }
   </style>
 </head>
@@ -429,18 +225,8 @@
   <canvas id="canvas" aria-label="Rough drawing canvas"></canvas>
 
   <div class="hint">
-    Smart draws and recognizes shapes, curves, and deliberate scribble-fills. Select creates a draggable group from a rectangle. Hand drags one shape or the current selection. Text adds Excalifont labels. Drawings sync live with everyone in the room. Cmd/Ctrl+Z undo.
+    Draw inside the faint puppet frame. Play animates a walking loop. Stop resets to the stored drawing. Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo.
   </div>
-
-  <div class="topbar">
-    <div class="netstatus" aria-live="polite">
-      <span class="dot" id="statusDot"></span>
-      <span id="presence">Connecting…</span>
-    </div>
-    <button id="avatarBtn" class="avatar-button" type="button">Avatar</button>
-  </div>
-
-  <div id="moveHint" class="move-hint">WASD to move</div>
 
   <div class="toolbar" role="toolbar" aria-label="Drawing controls">
     <div class="group" aria-label="Tools">
@@ -478,67 +264,13 @@
     </div>
 
     <div class="group">
+      <button id="playBtn" type="button">Play</button>
+      <button id="stopBtn" type="button">Stop</button>
       <button id="undoBtn" type="button">Undo</button>
+      <button id="redoBtn" type="button">Redo</button>
       <button id="clearBtn" type="button">Clear</button>
       <button id="pngBtn" type="button">Export PNG</button>
       <button id="svgBtn" type="button">Export SVG</button>
-    </div>
-  </div>
-
-  <div id="avatarOverlay" class="avatar-overlay" hidden>
-    <div class="avatar-dialog" role="dialog" aria-modal="true" aria-labelledby="avatarTitle">
-      <div class="avatar-stage">
-        <canvas id="avatarCanvas" aria-label="Avatar drawing canvas"></canvas>
-      </div>
-      <div class="avatar-panel">
-        <h2 id="avatarTitle" class="avatar-title">Avatar</h2>
-        <div class="avatar-controls" role="toolbar" aria-label="Avatar drawing controls">
-          <div class="group" aria-label="Avatar tools">
-            <button type="button" class="avatar-tool active" data-avatar-tool="smart">Smart</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="select">Select</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="hand">Hand</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="text">Text</button>
-          </div>
-
-          <div class="group">
-            <label title="Avatar stroke color">
-              Stroke
-              <input id="avatarStrokeColor" type="color" value="#222222" />
-            </label>
-          </div>
-
-          <div class="group">
-            <label>
-              Rough
-              <input id="avatarRoughness" type="range" min="0" max="4" step="0.1" value="1.5" />
-              <span id="avatarRoughnessValue" class="value">1.5</span>
-            </label>
-          </div>
-
-          <div class="group">
-            <label>
-              Bow
-              <input id="avatarBowing" type="range" min="0" max="10" step="0.1" value="1.0" />
-              <span id="avatarBowingValue" class="value">1.0</span>
-            </label>
-          </div>
-
-          <div class="group">
-            <label>
-              Width
-              <input id="avatarStrokeWidth" type="range" min="1" max="14" step="0.5" value="2" />
-              <span id="avatarStrokeWidthValue" class="value">2.0</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="avatar-actions">
-          <button id="avatarPlayBtn" type="button">Play</button>
-          <button id="avatarClearBtn" type="button">Clear</button>
-          <button id="avatarCancelBtn" type="button">Cancel</button>
-          <button id="avatarOkayBtn" class="primary" type="button">Okay</button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -553,10 +285,7 @@
         return;
       }
 
-      const STORAGE_KEY = "drawbuddies:v2";
-      const PLAYER_STATE_KEY = "drawbuddies:player:v1";
-      const AVATAR_STORAGE_KEY = "drawbuddies:avatar:v1";
-      const MOVE_HINT_KEY = "drawbuddies:movement-hint:v1";
+      const STORAGE_KEY = "rough-drawing-playground:v2";
 
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d", { alpha: false });
@@ -569,16 +298,14 @@
         bowingValue: document.getElementById("bowingValue"),
         strokeWidth: document.getElementById("strokeWidth"),
         strokeWidthValue: document.getElementById("strokeWidthValue"),
-        avatarBtn: document.getElementById("avatarBtn"),
+        playBtn: document.getElementById("playBtn"),
+        stopBtn: document.getElementById("stopBtn"),
         undoBtn: document.getElementById("undoBtn"),
+        redoBtn: document.getElementById("redoBtn"),
         clearBtn: document.getElementById("clearBtn"),
         pngBtn: document.getElementById("pngBtn"),
         svgBtn: document.getElementById("svgBtn")
       };
-
-      const statusDot = document.getElementById("statusDot");
-      const presenceEl = document.getElementById("presence");
-      const moveHintEl = document.getElementById("moveHint");
 
       let rc = rough.canvas(canvas);
       const gen = rough.generator();
@@ -588,62 +315,15 @@
       let viewHeight = 0;
       let currentTool = "smart";
       let activeDrag = null;
+      let shapeId = 1;
       let selectedIds = [];
-      let playerInitialized = false;
-      let movementFrameId = null;
-      let lastMoveTimestamp = 0;
-      let lastPlayerBroadcast = 0;
-      let lastBroadcastMoving = false;
-      let avatarAnimationStart = 0;
+      let isPlaying = false;
+      let animationStart = 0;
+      let animationFrameId = null;
 
       const shapes = [];
       const historyStack = [];
-      const remotePlayers = new Map();
-      const pressedMovementKeys = new Set();
-
-      function storedJson(key, fallback = null) {
-        try {
-          const raw = localStorage.getItem(key);
-          return raw ? JSON.parse(raw) : fallback;
-        } catch {
-          return fallback;
-        }
-      }
-
-      function storeJson(key, value) {
-        try {
-          localStorage.setItem(key, JSON.stringify(value));
-        } catch {
-          // Drawing still works without persistence.
-        }
-      }
-
-      // ===== Globally-unique shape ids =====
-      // Shape ids must be unique across all clients so concurrent authors never
-      // collide. Integer counters would; UUID-ish strings won't.
-      const PLAYER_ID =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-      const CLIENT_ID =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID().slice(0, 8)
-          : PLAYER_ID.slice(0, 8);
-      let idCounter = 0;
-      const localPlayer = {
-        id: PLAYER_ID,
-        x: 0,
-        y: 0,
-        moving: false,
-        avatar: []
-      };
-
-      function newId() {
-        if (typeof crypto !== "undefined" && crypto.randomUUID) {
-          return crypto.randomUUID();
-        }
-        return `${CLIENT_ID}-${Date.now().toString(36)}-${idCounter++}`;
-      }
+      const redoStack = [];
 
       function newSeed() {
         return typeof rough.newSeed === "function"
@@ -656,13 +336,8 @@
         return Number.isFinite(n) ? n : fallback;
       }
 
-      // Round to one decimal — keeps geometry compact on the wire and in storage.
-      function round1(n) {
-        return Math.round(n * 10) / 10;
-      }
-
       function roundPoint(point) {
-        return [round1(point[0]), round1(point[1])];
+        return [Math.round(point[0] * 10) / 10, Math.round(point[1] * 10) / 10];
       }
 
       function currentOptions(seed = newSeed()) {
@@ -694,63 +369,6 @@
         return out;
       }
 
-      const AVATAR_FRAME = { width: 260, height: 360 };
-      const AVATAR_DISPLAY_HEIGHT = 132;
-      const PLAYER_SPEED = 220;
-
-      function avatarOption(seed, stroke = "#222222", fill = null, fillStyle = "hachure") {
-        return {
-          stroke,
-          fill,
-          fillStyle,
-          roughness: 1.35,
-          bowing: 1,
-          strokeWidth: 2.2,
-          seed
-        };
-      }
-
-      function defaultAvatarData() {
-        return [
-          {
-            id: "default-head",
-            type: "ellipse",
-            geom: { x1: 101, y1: 34, x2: 159, y2: 92 },
-            options: avatarOption(1301, "#222222", "#f4d7b6", "solid")
-          },
-          {
-            id: "default-body",
-            type: "rectangle",
-            geom: { x1: 89, y1: 102, x2: 171, y2: 222 },
-            options: avatarOption(1302, "#222222", "#a6d8ff", "hachure")
-          },
-          {
-            id: "default-left-arm",
-            type: "line",
-            geom: { x1: 91, y1: 130, x2: 55, y2: 188 },
-            options: avatarOption(1303)
-          },
-          {
-            id: "default-right-arm",
-            type: "line",
-            geom: { x1: 169, y1: 130, x2: 205, y2: 188 },
-            options: avatarOption(1304)
-          },
-          {
-            id: "default-left-leg",
-            type: "rectangle",
-            geom: { x1: 91, y1: 238, x2: 121, y2: 328 },
-            options: avatarOption(1305, "#222222", "#f7f2e8", "hachure")
-          },
-          {
-            id: "default-right-leg",
-            type: "rectangle",
-            geom: { x1: 139, y1: 238, x2: 169, y2: 328 },
-            options: avatarOption(1306, "#222222", "#f7f2e8", "hachure")
-          }
-        ];
-      }
-
       function shapeZRank(shape) {
         if (!shape || !shape.options || !shape.options.fill) {
           return shape && shape.type === "text" ? 5 : 4;
@@ -779,34 +397,11 @@
         return orderedShapeEntries().map((entry) => entry.shape);
       }
 
-      function cameraOffset() {
-        return {
-          x: localPlayer.x - viewWidth / 2,
-          y: localPlayer.y - viewHeight / 2
-        };
-      }
-
-      function screenToWorld(point) {
-        const camera = cameraOffset();
-        return {
-          x: point.x + camera.x,
-          y: point.y + camera.y
-        };
-      }
-
-      function worldToScreen(point) {
-        const camera = cameraOffset();
-        return {
-          x: point.x - camera.x,
-          y: point.y - camera.y
-        };
-      }
-
-      function avatarGuide() {
-        const x = 20;
-        const y = 20;
-        const width = AVATAR_FRAME.width - 40;
-        const height = AVATAR_FRAME.height - 40;
+      function puppetGuide() {
+        const width = Math.min(460, Math.max(260, viewWidth * 0.42));
+        const height = Math.min(620, Math.max(360, viewHeight * 0.62));
+        const x = (viewWidth - width) / 2;
+        const y = (viewHeight - height) / 2;
         const bodyHeight = height * (2 / 3);
         const legHeight = height - bodyHeight;
         const legWidth = width / 2;
@@ -819,22 +414,24 @@
         };
       }
 
-      function drawPuppetGuide(context, guide) {
-        context.save();
-        context.lineWidth = 1.2;
-        context.strokeStyle = "rgba(45, 83, 135, 0.18)";
-        context.fillStyle = "rgba(45, 83, 135, 0.018)";
-        context.setLineDash([8, 7]);
+      function drawPuppetGuide() {
+        const guide = puppetGuide();
+
+        ctx.save();
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = "rgba(45, 83, 135, 0.18)";
+        ctx.fillStyle = "rgba(45, 83, 135, 0.018)";
+        ctx.setLineDash([8, 7]);
 
         for (const box of [guide.body, guide.leftLeg, guide.rightLeg]) {
-          context.fillRect(box.x, box.y, box.width, box.height);
-          context.strokeRect(box.x, box.y, box.width, box.height);
+          ctx.fillRect(box.x, box.y, box.width, box.height);
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
         }
 
-        context.setLineDash([]);
-        context.strokeStyle = "rgba(45, 83, 135, 0.10)";
-        context.strokeRect(guide.outer.x, guide.outer.y, guide.outer.width, guide.outer.height);
-        context.restore();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "rgba(45, 83, 135, 0.10)";
+        ctx.strokeRect(guide.outer.x, guide.outer.y, guide.outer.width, guide.outer.height);
+        ctx.restore();
       }
 
       function boxCenter(box) {
@@ -853,10 +450,10 @@
         );
       }
 
-      function avatarPartForShape(shape) {
+      function puppetPartForShape(shape) {
         const box = shapeBounds(shape);
         const center = boxCenter(box);
-        const guide = avatarGuide();
+        const guide = puppetGuide();
 
         if (pointInsideBox(center, guide.body)) return "body";
         if (pointInsideBox(center, guide.leftLeg)) return "leftLeg";
@@ -864,16 +461,18 @@
         return null;
       }
 
-      function avatarAnimationTransform(part, moving) {
-        if (!moving || !part) return { x: 0, y: 0, rotate: 0, cx: 0, cy: 0 };
+      function animationTransformForPart(part) {
+        if (!isPlaying || !part) return { x: 0, y: 0, rotate: 0, cx: 0, cy: 0 };
 
-        if (!avatarAnimationStart) avatarAnimationStart = performance.now();
-        const t = (performance.now() - avatarAnimationStart) / 1000;
+        const t = (performance.now() - animationStart) / 1000;
         const speed = 1.35;
         const phaseBase = (t * speed) % 1;
         const cycle = phaseBase * Math.PI * 2;
-        const guide = avatarGuide();
+        const guide = puppetGuide();
+
+        // More subtle side-to-side crossing: about half the previous travel.
         const crossover = Math.min(guide.leftLeg.width * 0.055, 6);
+        // Slightly bigger vertical step.
         const lift = 10.5;
 
         function smoothstep(v) {
@@ -881,14 +480,35 @@
           return x * x * (3 - 2 * x);
         }
 
+        // Vertical step cycle only: lift -> hold high while stepping -> lower -> grounded.
         function legVerticalPose(phase) {
-          if (phase < 0.25) return -lift * smoothstep(phase / 0.25);
-          if (phase < 0.5) return -lift;
-          if (phase < 0.75) return -lift * (1 - smoothstep((phase - 0.5) / 0.25));
-          return 0;
+          let y = 0;
+
+          if (phase < 0.25) {
+            const p = smoothstep(phase / 0.25);
+            y = -lift * p;
+          } else if (phase < 0.5) {
+            y = -lift;
+          } else if (phase < 0.75) {
+            const p = smoothstep((phase - 0.5) / 0.25);
+            y = -lift * (1 - p);
+          } else {
+            y = 0;
+          }
+
+          return y;
         }
 
+        // Side-to-side crossover stays exact counter-phase.
+        const leftX = Math.sin(cycle) * crossover;
+        const rightX = -Math.sin(cycle) * crossover;
+
+        // Top/down timing remains counter-phased between legs.
+        const leftY = legVerticalPose(phaseBase);
+        const rightY = legVerticalPose((phaseBase + 0.5) % 1);
+
         if (part === "body") {
+          // Calm single-frequency bob. No extra stride-frequency tremble.
           return {
             x: 0,
             y: Math.sin(cycle) * 2.2,
@@ -900,8 +520,8 @@
 
         if (part === "leftLeg") {
           return {
-            x: Math.sin(cycle) * crossover,
-            y: legVerticalPose(phaseBase),
+            x: leftX,
+            y: leftY,
             rotate: 0,
             cx: guide.leftLeg.x + guide.leftLeg.width / 2,
             cy: guide.leftLeg.y + 8
@@ -910,8 +530,8 @@
 
         if (part === "rightLeg") {
           return {
-            x: -Math.sin(cycle) * crossover,
-            y: legVerticalPose((phaseBase + 0.5) % 1),
+            x: rightX,
+            y: rightY,
             rotate: 0,
             cx: guide.rightLeg.x + guide.rightLeg.width / 2,
             cy: guide.rightLeg.y + 8
@@ -921,63 +541,23 @@
         return { x: 0, y: 0, rotate: 0, cx: 0, cy: 0 };
       }
 
-      function drawShapeWithCurrentTransform(shape) {
-        if (shape.type === "text") {
-          drawTextShape(ctx, shape);
+      function withAnimationTransform(shape, draw) {
+        const part = puppetPartForShape(shape);
+        const transform = animationTransformForPart(part);
+
+        if (!isPlaying || !part) {
+          draw();
           return;
         }
 
-        if (!shape.drawable) {
-          shape.drawable = buildDrawable(shape);
-        }
-
-        if (shape.drawable) {
-          rc.draw(shape.drawable);
-        }
-      }
-
-      function drawAvatarAt(player, screenX, screenY, moving) {
-        const avatar = player.avatar && player.avatar.length ? player.avatar : hydrateAvatarShapeList(defaultAvatarData());
-        const scale = AVATAR_DISPLAY_HEIGHT / AVATAR_FRAME.height;
-        const left = screenX - (AVATAR_FRAME.width * scale) / 2;
-        const top = screenY - (AVATAR_FRAME.height * scale) / 2;
-
         ctx.save();
-        ctx.translate(left, top);
-        ctx.scale(scale, scale);
-
-        for (const shape of avatar.slice().sort((a, b) => shapeZRank(a) - shapeZRank(b))) {
-          const part = avatarPartForShape(shape);
-          const transform = avatarAnimationTransform(part, moving);
-
-          ctx.save();
-          ctx.translate(transform.cx, transform.cy);
-          ctx.rotate(transform.rotate);
-          ctx.translate(-transform.cx + transform.x, -transform.cy + transform.y);
-          drawShapeWithCurrentTransform(shape);
-          ctx.restore();
-        }
-
+        ctx.translate(transform.cx, transform.cy);
+        ctx.rotate(transform.rotate);
+        ctx.translate(-transform.cx + transform.x, -transform.cy + transform.y);
+        draw();
         ctx.restore();
       }
 
-      function drawPlayers() {
-        for (const player of remotePlayers.values()) {
-          if (!player || player.id === PLAYER_ID) continue;
-          const point = worldToScreen({ x: player.x, y: player.y });
-          if (
-            point.x < -AVATAR_DISPLAY_HEIGHT ||
-            point.x > viewWidth + AVATAR_DISPLAY_HEIGHT ||
-            point.y < -AVATAR_DISPLAY_HEIGHT ||
-            point.y > viewHeight + AVATAR_DISPLAY_HEIGHT
-          ) {
-            continue;
-          }
-          drawAvatarAt(player, point.x, point.y, player.moving);
-        }
-
-        drawAvatarAt(localPlayer, viewWidth / 2, viewHeight / 2, localPlayer.moving);
-      }
 
       function clearSelection() {
         selectedIds = [];
@@ -1126,7 +706,7 @@
       function makeShape(type, start, end, points, options) {
         if (type === "smart") {
           return {
-            id: newId(),
+            id: shapeId++,
             type,
             geom: { points: points.map(roundPoint) },
             options: { ...options },
@@ -1135,13 +715,13 @@
         }
 
         return {
-          id: newId(),
+          id: shapeId++,
           type,
           geom: {
-            x1: round1(start.x),
-            y1: round1(start.y),
-            x2: round1(end.x),
-            y2: round1(end.y)
+            x1: Math.round(start.x * 10) / 10,
+            y1: Math.round(start.y * 10) / 10,
+            x2: Math.round(end.x * 10) / 10,
+            y2: Math.round(end.y * 10) / 10
           },
           options: { ...options },
           drawable: null
@@ -1156,38 +736,21 @@
         return { x, y, width, height };
       }
 
-      // rough.js curve config for the two freehand shape types. Roughness and bowing
-      // are capped so long strokes stay legible; the rest is constant per type.
-      const CURVE_RENDER = { maxRoughness: 0.85, maxBowing: 0.7, curveFitting: 0.82, curveTightness: 0.18 };
-      const SMART_RENDER = { maxRoughness: 0.9, maxBowing: 0.8, curveFitting: 0.85, curveTightness: 0.15 };
-
-      function curveOpts(opts, cfg) {
-        return {
-          ...opts,
-          fill: undefined,
-          fillStyle: undefined,
-          roughness: Math.min(opts.roughness, cfg.maxRoughness),
-          bowing: Math.min(opts.bowing, cfg.maxBowing),
-          curveFitting: cfg.curveFitting,
-          curveTightness: cfg.curveTightness
-        };
-      }
-
-      // Build a rough.js shape with `factory` — the rough generator (canvas) or
-      // rough.svg (export); both share the rectangle/ellipse/line/curve API. Text is
-      // handled by the callers; every other type routes through here so the canvas
-      // and SVG renderers can never drift apart.
-      function buildRoughShape(factory, shape) {
+      function buildDrawable(shape) {
         const opts = roughOptions(shape.options, shape.type);
+
+        if (shape.type === "text") {
+          return null;
+        }
 
         if (shape.type === "rectangle") {
           const box = normalizedBox(shape.geom);
-          return factory.rectangle(box.x, box.y, box.width, box.height, opts);
+          return gen.rectangle(box.x, box.y, box.width, box.height, opts);
         }
 
         if (shape.type === "ellipse") {
           const box = normalizedBox(shape.geom);
-          return factory.ellipse(
+          return gen.ellipse(
             box.x + box.width / 2,
             box.y + box.height / 2,
             box.width,
@@ -1198,26 +761,40 @@
 
         if (shape.type === "line") {
           const g = shape.geom;
-          return factory.line(g.x1, g.y1, g.x2, g.y2, opts);
+          return gen.line(g.x1, g.y1, g.x2, g.y2, opts);
         }
 
         if (shape.type === "curve") {
           const points = curveRenderablePoints(shape.geom.points);
           if (points.length < 2) return null;
-          return factory.curve(points, curveOpts(opts, CURVE_RENDER));
+
+          return gen.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.85),
+            bowing: Math.min(opts.bowing, 0.7),
+            curveFitting: 0.82,
+            curveTightness: 0.18
+          });
         }
 
         if (shape.type === "smart") {
           const points = freehandRenderablePoints(shape.geom.points);
           if (points.length < 2) return null;
-          return factory.curve(points, curveOpts(opts, SMART_RENDER));
+
+          return gen.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.9),
+            bowing: Math.min(opts.bowing, 0.8),
+            curveFitting: 0.85,
+            curveTightness: 0.15
+          });
         }
 
         return null;
-      }
-
-      function buildDrawable(shape) {
-        return shape.type === "text" ? null : buildRoughShape(gen, shape);
       }
 
       function isMeaningful(shape) {
@@ -1444,10 +1021,10 @@
           return {
             type: "line",
             geom: {
-              x1: round1(start[0]),
-              y1: round1(start[1]),
-              x2: round1(end[0]),
-              y2: round1(end[1])
+              x1: Math.round(start[0] * 10) / 10,
+              y1: Math.round(start[1] * 10) / 10,
+              x2: Math.round(end[0] * 10) / 10,
+              y2: Math.round(end[1] * 10) / 10
             }
           };
         }
@@ -1612,10 +1189,10 @@
           return {
             type: "rectangle",
             geom: {
-              x1: round1(minX),
-              y1: round1(minY),
-              x2: round1(maxX),
-              y2: round1(maxY)
+              x1: Math.round(minX * 10) / 10,
+              y1: Math.round(minY * 10) / 10,
+              x2: Math.round(maxX * 10) / 10,
+              y2: Math.round(maxY * 10) / 10
             }
           };
         }
@@ -1665,10 +1242,10 @@
           return {
             type: "ellipse",
             geom: {
-              x1: round1(minX),
-              y1: round1(minY),
-              x2: round1(maxX),
-              y2: round1(maxY)
+              x1: Math.round(minX * 10) / 10,
+              y1: Math.round(minY * 10) / 10,
+              x2: Math.round(maxX * 10) / 10,
+              y2: Math.round(maxY * 10) / 10
             }
           };
         }
@@ -2045,7 +1622,6 @@
         target.options.fillStyle = fillStyle;
         target.drawable = buildDrawable(target);
         save();
-        net.send({ type: "update", shape: serializeShape(target) });
         redraw();
         return true;
       }
@@ -2059,9 +1635,11 @@
         const spacing = 28;
         const crossHalf = 3.2;
 
+        // Paper base
         ctx.fillStyle = "#fbfdff";
         ctx.fillRect(0, 0, w, h);
 
+        // Very subtle horizontal notebook ruling
         ctx.strokeStyle = "rgba(95, 145, 210, 0.10)";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -2071,6 +1649,7 @@
         }
         ctx.stroke();
 
+        // Subtle cross pattern
         ctx.strokeStyle = "rgba(95, 145, 210, 0.095)";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -2084,6 +1663,7 @@
         }
         ctx.stroke();
 
+        // Faint margin line for notebook feel
         ctx.strokeStyle = "rgba(120, 155, 205, 0.08)";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -2091,6 +1671,7 @@
         ctx.lineTo(44.5, h);
         ctx.stroke();
 
+        // Paper noise / fiber
         ctx.globalAlpha = 0.032;
         ctx.fillStyle = "#4b5b6d";
         const count = Math.floor((w * h) / 6500);
@@ -2114,13 +1695,23 @@
 
       function redraw(previewShape = null) {
         drawBackground();
-
-        const camera = cameraOffset();
-        ctx.save();
-        ctx.translate(-camera.x, -camera.y);
+        drawPuppetGuide();
 
         for (const shape of orderedShapes()) {
-          drawShapeWithCurrentTransform(shape);
+          withAnimationTransform(shape, () => {
+            if (shape.type === "text") {
+              drawTextShape(ctx, shape);
+              return;
+            }
+
+            if (!shape.drawable) {
+              shape.drawable = buildDrawable(shape);
+            }
+
+            if (shape.drawable) {
+              rc.draw(shape.drawable);
+            }
+          });
         }
 
         drawSelectionOverlay();
@@ -2128,49 +1719,43 @@
         if (previewShape) {
           if (previewShape.type === "text") {
             drawTextShape(ctx, previewShape);
-          } else if (previewShape.type === "select-box") {
+            return;
+          }
+
+          if (previewShape.type === "select-box") {
             drawSelectMarquee(previewShape);
-          } else {
-            const previewDrawable = buildDrawable(previewShape);
-            if (previewDrawable) {
-              rc.draw(previewDrawable);
-            }
+            return;
+          }
+
+          const previewDrawable = buildDrawable(previewShape);
+          if (previewDrawable) {
+            rc.draw(previewDrawable);
           }
         }
-
-        ctx.restore();
-        drawPlayers();
-      }
-
-      // Strip the cached `drawable` (and any transient fields) before sending
-      // a shape over the wire or to localStorage.
-      function serializeShape(shape) {
-        return {
-          id: shape.id,
-          type: shape.type,
-          geom: shape.geom,
-          options: shape.options
-        };
       }
 
       function save() {
         try {
-          const serializable = shapes.map(serializeShape);
+          const serializable = shapes.map(({ id, type, geom, options }) => ({
+            id,
+            type,
+            geom,
+            options
+          }));
+
           localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
         } catch {
           // Drawing still works without persistence.
         }
       }
 
-      // Deep clone plain shape data (geom/options are JSON-safe).
-      function clone(value) {
-        return typeof structuredClone === "function"
-          ? structuredClone(value)
-          : JSON.parse(JSON.stringify(value));
-      }
-
       function cloneShapeData(shape) {
-        return clone(serializeShape(shape));
+        return {
+          id: shape.id,
+          type: shape.type,
+          geom: JSON.parse(JSON.stringify(shape.geom)),
+          options: JSON.parse(JSON.stringify(shape.options))
+        };
       }
 
       function snapshotShapes() {
@@ -2179,7 +1764,7 @@
 
       function hydrateShape(shapeData) {
         const shape = {
-          id: typeof shapeData.id === "string" && shapeData.id ? shapeData.id : newId(),
+          id: Number.isFinite(shapeData.id) ? shapeData.id : shapeId++,
           type: shapeData.type,
           geom: shapeData.geom,
           options: shapeData.options || currentOptions(newSeed()),
@@ -2190,114 +1775,28 @@
         return shape;
       }
 
-      // Turn raw shape data (from storage, the network, or a history snapshot) into
-      // hydrated, drawable shapes, dropping anything malformed or insignificant.
-      function hydrateShapeList(list) {
-        if (!Array.isArray(list)) return [];
-        const out = [];
-        for (const item of list) {
-          if (!item || !item.type || !item.geom || !item.options) continue;
-          const shape = hydrateShape(item);
-          if (isMeaningful(shape)) out.push(shape);
-        }
-        return out;
-      }
-
-      function hydrateAvatarShapeList(list) {
-        const source = Array.isArray(list) && list.length ? list : defaultAvatarData();
-        return hydrateShapeList(source).slice(0, 250);
-      }
-
-      function avatarSnapshot(shapesToSnapshot = localPlayer.avatar) {
-        return shapesToSnapshot.map(cloneShapeData);
-      }
-
-      function playerPayload(includeAvatar = true) {
-        const payload = {
-          id: localPlayer.id,
-          x: round1(localPlayer.x),
-          y: round1(localPlayer.y),
-          moving: localPlayer.moving
-        };
-
-        if (includeAvatar) {
-          payload.avatar = localPlayer.avatar.map(serializeShape);
-        }
-
-        return payload;
-      }
-
-      function persistPlayerState() {
-        storeJson(PLAYER_STATE_KEY, {
-          x: round1(localPlayer.x),
-          y: round1(localPlayer.y)
-        });
-      }
-
-      function loadPlayerState() {
-        const storedPlayer = storedJson(PLAYER_STATE_KEY);
-        if (storedPlayer && Number.isFinite(storedPlayer.x) && Number.isFinite(storedPlayer.y)) {
-          localPlayer.x = storedPlayer.x;
-          localPlayer.y = storedPlayer.y;
-          playerInitialized = true;
-        }
-
-        localPlayer.avatar = hydrateAvatarShapeList(storedJson(AVATAR_STORAGE_KEY));
-        storeJson(AVATAR_STORAGE_KEY, localPlayer.avatar.map(serializeShape));
-      }
-
-      function initializePlayerPosition() {
-        if (playerInitialized || !viewWidth || !viewHeight) return;
-        localPlayer.x = viewWidth / 2;
-        localPlayer.y = viewHeight / 2;
-        playerInitialized = true;
-        persistPlayerState();
-      }
-
-      function applyRemotePlayerSet(playerData) {
-        if (!playerData || typeof playerData.id !== "string" || playerData.id === PLAYER_ID) return;
-        const avatar = hydrateAvatarShapeList(playerData.avatar);
-        remotePlayers.set(playerData.id, {
-          id: playerData.id,
-          x: clampNumber(playerData.x, viewWidth / 2),
-          y: clampNumber(playerData.y, viewHeight / 2),
-          moving: Boolean(playerData.moving),
-          avatar
-        });
-        redraw();
-      }
-
-      function applyRemotePlayerMove(move) {
-        if (!move || typeof move.id !== "string" || move.id === PLAYER_ID) return;
-        const existing = remotePlayers.get(move.id);
-        if (!existing) return;
-        existing.x = clampNumber(move.x, existing.x);
-        existing.y = clampNumber(move.y, existing.y);
-        existing.moving = Boolean(move.moving);
-        redraw();
-      }
-
-      function applyRemotePlayers(players) {
-        remotePlayers.clear();
-        if (Array.isArray(players)) {
-          for (const player of players) {
-            applyRemotePlayerSet(player);
-          }
-        }
-        redraw();
-      }
-
       function restoreSnapshot(snapshot) {
         shapes.length = 0;
-        shapes.push(...hydrateShapeList(snapshot));
+
+        for (const shapeData of snapshot) {
+          const shape = hydrateShape(shapeData);
+          if (isMeaningful(shape)) {
+            shapes.push(shape);
+            shapeId = Math.max(shapeId, shape.id + 1);
+          }
+        }
+
         save();
         redraw();
       }
 
-      function recordHistory() {
+      function recordHistory(clearRedo = true) {
         historyStack.push(snapshotShapes());
         if (historyStack.length > 100) {
           historyStack.shift();
+        }
+        if (clearRedo) {
+          redoStack.length = 0;
         }
       }
 
@@ -2306,272 +1805,24 @@
           const raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return;
 
-          shapes.push(...hydrateShapeList(JSON.parse(raw)));
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return;
+
+          for (const item of parsed) {
+            if (!item || !item.type || !item.geom || !item.options) continue;
+
+            const shape = hydrateShape(item);
+
+            if (isMeaningful(shape)) {
+              shapes.push(shape);
+              shapeId = Math.max(shapeId, shape.id + 1);
+            }
+          }
+
           historyStack.length = 0;
         } catch {
-          // Corrupt saved data should not break the canvas.
+          // Corrupt saved data should not break the playground.
         }
-      }
-
-      // ===== Multiplayer networking =====
-      // Shared state lives in a Cloudflare Durable Object (see src/index.ts).
-      // We send granular ops (add/update/remove/replace/clear) and apply remote
-      // ops locally without re-broadcasting them.
-      const net = (() => {
-        const roomName = new URLSearchParams(window.location.search).get("room") || "main";
-        let ws = null;
-        let connected = false;
-        let reconnectTimer = null;
-
-        function setStatus(isConnected) {
-          connected = isConnected;
-          statusDot.classList.toggle("connected", isConnected);
-          if (!isConnected) {
-            presenceEl.textContent = "Reconnecting…";
-          }
-        }
-
-        function setPresence(count) {
-          presenceEl.textContent = `${count} ${count === 1 ? "person" : "people"} here`;
-        }
-
-        function connect() {
-          const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-          const url = `${protocol}//${window.location.host}/ws?room=${encodeURIComponent(roomName)}`;
-          ws = new WebSocket(url);
-
-          ws.onopen = () => {
-            setStatus(true);
-            if (reconnectTimer) {
-              clearTimeout(reconnectTimer);
-              reconnectTimer = null;
-            }
-            sendPlayerSet();
-          };
-
-          ws.onmessage = (event) => {
-            try {
-              handle(JSON.parse(event.data));
-            } catch {
-              // ignore malformed
-            }
-          };
-
-          ws.onclose = () => {
-            setStatus(false);
-            reconnectTimer = setTimeout(connect, 1000);
-          };
-
-          ws.onerror = () => {
-            // onclose handles reconnection
-          };
-        }
-
-        function handle(msg) {
-          switch (msg.type) {
-            case "sync":
-              applyRemoteReplace(msg.shapes);
-              applyRemotePlayers(msg.players);
-              setPresence(msg.count);
-              break;
-            case "count":
-              setPresence(msg.count);
-              break;
-            case "add":
-            case "update":
-              applyRemoteUpsert(msg.shape);
-              break;
-            case "remove":
-              applyRemoteRemove(msg.id);
-              break;
-            case "replace":
-              applyRemoteReplace(msg.shapes);
-              break;
-            case "clear":
-              applyRemoteClear();
-              break;
-            case "player-set":
-              applyRemotePlayerSet(msg.player);
-              break;
-            case "player-move":
-              applyRemotePlayerMove(msg);
-              break;
-            case "player-remove":
-              if (typeof msg.id === "string") {
-                remotePlayers.delete(msg.id);
-                redraw();
-              }
-              break;
-          }
-        }
-
-        function sendMessage(msg) {
-          if (connected && ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
-            return true;
-          }
-          return false;
-        }
-
-        function sendPlayerSet() {
-          sendMessage({ type: "player-set", player: playerPayload(true) });
-        }
-
-        return {
-          connect,
-          sendPlayerSet,
-          sendPlayerMove() {
-            sendMessage({
-              type: "player-move",
-              id: localPlayer.id,
-              x: round1(localPlayer.x),
-              y: round1(localPlayer.y),
-              moving: localPlayer.moving
-            });
-          },
-          send(msg) {
-            sendMessage(msg);
-          }
-        };
-      })();
-
-      function isEditableTarget(target) {
-        if (!target || target === document.body) return false;
-        const tag = target.tagName ? target.tagName.toLowerCase() : "";
-        return tag === "input" || tag === "textarea" || target.isContentEditable;
-      }
-
-      function updateMovementHint() {
-        const seen = storedJson(MOVE_HINT_KEY, false);
-        moveHintEl.classList.toggle("hidden", Boolean(seen));
-      }
-
-      function hideMovementHint() {
-        if (storedJson(MOVE_HINT_KEY, false)) return;
-        storeJson(MOVE_HINT_KEY, true);
-        updateMovementHint();
-      }
-
-      function movementVector() {
-        const left = pressedMovementKeys.has("a");
-        const right = pressedMovementKeys.has("d");
-        const up = pressedMovementKeys.has("w");
-        const down = pressedMovementKeys.has("s");
-        let dx = (right ? 1 : 0) - (left ? 1 : 0);
-        let dy = (down ? 1 : 0) - (up ? 1 : 0);
-        const length = Math.hypot(dx, dy);
-        if (length > 0) {
-          dx /= length;
-          dy /= length;
-        }
-        return { dx, dy, moving: length > 0 };
-      }
-
-      function broadcastPlayerMove(force = false) {
-        const now = performance.now();
-        if (!force && now - lastPlayerBroadcast < 50 && localPlayer.moving === lastBroadcastMoving) {
-          return;
-        }
-        lastPlayerBroadcast = now;
-        lastBroadcastMoving = localPlayer.moving;
-        persistPlayerState();
-        net.sendPlayerMove();
-      }
-
-      function updateMovement(timestamp) {
-        movementFrameId = null;
-        if (!lastMoveTimestamp) lastMoveTimestamp = timestamp;
-
-        const dt = Math.min(0.05, Math.max(0, (timestamp - lastMoveTimestamp) / 1000));
-        lastMoveTimestamp = timestamp;
-        const vector = movementVector();
-        const wasMoving = localPlayer.moving;
-        localPlayer.moving = vector.moving;
-
-        if (vector.moving) {
-          localPlayer.x = round1(localPlayer.x + vector.dx * PLAYER_SPEED * dt);
-          localPlayer.y = round1(localPlayer.y + vector.dy * PLAYER_SPEED * dt);
-          hideMovementHint();
-          broadcastPlayerMove();
-          redraw();
-          movementFrameId = requestAnimationFrame(updateMovement);
-          return;
-        }
-
-        lastMoveTimestamp = 0;
-        avatarAnimationStart = 0;
-        if (wasMoving) {
-          broadcastPlayerMove(true);
-          redraw();
-        }
-      }
-
-      function scheduleMovement() {
-        if (movementFrameId === null) {
-          movementFrameId = requestAnimationFrame(updateMovement);
-        }
-      }
-
-      function handleMovementKey(event, isDown) {
-        if (event.metaKey || event.ctrlKey || event.altKey) return false;
-        if (avatarEditor.isOpen()) return false;
-        if (isEditableTarget(event.target)) return false;
-
-        const key = event.key.toLowerCase();
-        if (!["w", "a", "s", "d"].includes(key)) return false;
-
-        event.preventDefault();
-        if (isDown) {
-          pressedMovementKeys.add(key);
-          scheduleMovement();
-        } else {
-          pressedMovementKeys.delete(key);
-          scheduleMovement();
-        }
-        return true;
-      }
-
-      // Persist locally and repaint after applying a remote op.
-      function commitLocal() {
-        save();
-        redraw();
-      }
-
-      // Apply an incoming add/update: replace the shape with this id, or append.
-      function applyRemoteUpsert(shapeData) {
-        if (!shapeData || typeof shapeData.id !== "string") return;
-        const shape = hydrateShape(shapeData);
-        if (!isMeaningful(shape)) return;
-
-        const index = shapes.findIndex((s) => s.id === shape.id);
-        if (index >= 0) {
-          shapes[index] = shape;
-        } else {
-          shapes.push(shape);
-        }
-        commitLocal();
-      }
-
-      function applyRemoteRemove(id) {
-        if (typeof id !== "string") return;
-        const index = shapes.findIndex((s) => s.id === id);
-        if (index < 0) return;
-        shapes.splice(index, 1);
-        selectedIds = selectedIds.filter((sid) => sid !== id);
-        commitLocal();
-      }
-
-      function applyRemoteReplace(list) {
-        shapes.length = 0;
-        shapes.push(...hydrateShapeList(list));
-        clearSelection();
-        commitLocal();
-      }
-
-      function applyRemoteClear() {
-        shapes.length = 0;
-        clearSelection();
-        commitLocal();
       }
 
       function resize() {
@@ -2587,24 +1838,23 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         rc = rough.canvas(canvas);
 
-        initializePlayerPosition();
         redraw();
       }
 
       function canvasPoint(event) {
         const rect = canvas.getBoundingClientRect();
-        return screenToWorld({
+        return {
           x: event.clientX - rect.left,
           y: event.clientY - rect.top
-        });
+        };
       }
 
       function translateGeom(geom, dx, dy) {
         if (geom.points) {
           return {
             points: geom.points.map((point) => [
-              round1(point[0] + dx),
-              round1(point[1] + dy)
+              Math.round((point[0] + dx) * 10) / 10,
+              Math.round((point[1] + dy) * 10) / 10
             ])
           };
         }
@@ -2612,16 +1862,16 @@
         if (Object.prototype.hasOwnProperty.call(geom, "text")) {
           return {
             ...geom,
-            x: round1(geom.x + dx),
-            y: round1(geom.y + dy)
+            x: Math.round((geom.x + dx) * 10) / 10,
+            y: Math.round((geom.y + dy) * 10) / 10
           };
         }
 
         return {
-          x1: round1(geom.x1 + dx),
-          y1: round1(geom.y1 + dy),
-          x2: round1(geom.x2 + dx),
-          y2: round1(geom.y2 + dy)
+          x1: Math.round((geom.x1 + dx) * 10) / 10,
+          y1: Math.round((geom.y1 + dy) * 10) / 10,
+          x2: Math.round((geom.x2 + dx) * 10) / 10,
+          y2: Math.round((geom.y2 + dy) * 10) / 10
         };
       }
 
@@ -2760,9 +2010,8 @@
         editor.className = "text-editor";
         editor.spellcheck = false;
         editor.placeholder = "Text";
-        const screen = worldToScreen(point);
-        editor.style.left = `${Math.round(screen.x)}px`;
-        editor.style.top = `${Math.round(screen.y)}px`;
+        editor.style.left = `${Math.round(point.x)}px`;
+        editor.style.top = `${Math.round(point.y)}px`;
         document.body.appendChild(editor);
 
         const commit = () => {
@@ -2777,11 +2026,11 @@
           }
 
           const shape = {
-            id: newId(),
+            id: shapeId++,
             type: "text",
             geom: {
-              x: round1(point.x),
-              y: round1(point.y),
+              x: Math.round(point.x * 10) / 10,
+              y: Math.round(point.y * 10) / 10,
               text,
               fontSize: 28
             },
@@ -2792,7 +2041,6 @@
           recordHistory();
           shapes.push(shape);
           save();
-          net.send({ type: "add", shape: serializeShape(shape) });
           redraw();
         };
 
@@ -2848,13 +2096,13 @@
 
         if (activeDrag.tool === "select") {
           return {
-            id: "select-box",
+            id: -1,
             type: "select-box",
             geom: {
-              x1: round1(activeDrag.start.x),
-              y1: round1(activeDrag.start.y),
-              x2: round1(activeDrag.current.x),
-              y2: round1(activeDrag.current.y)
+              x1: Math.round(activeDrag.start.x * 10) / 10,
+              y1: Math.round(activeDrag.start.y * 10) / 10,
+              x2: Math.round(activeDrag.current.x * 10) / 10,
+              y2: Math.round(activeDrag.current.y * 10) / 10
             },
             options: {}
           };
@@ -2897,7 +2145,7 @@
             dragShapes,
             originalGeoms: dragShapes.map((shape) => ({
               id: shape.id,
-              geom: clone(shape.geom)
+              geom: JSON.parse(JSON.stringify(shape.geom))
             })),
             moved: false,
             historyRecorded: false
@@ -2994,15 +2242,9 @@
 
         if (activeDrag.tool === "hand") {
           const moved = activeDrag.moved;
-          const dragShapes = activeDrag.dragShapes;
           activeDrag = null;
           document.body.classList.remove("dragging-shape");
-          if (moved) {
-            save();
-            for (const shape of dragShapes) {
-              net.send({ type: "update", shape: serializeShape(shape) });
-            }
-          }
+          if (moved) save();
           redraw();
           return;
         }
@@ -3034,7 +2276,6 @@
           shape.drawable = shape.drawable || buildDrawable(shape);
           shapes.push(shape);
           save();
-          net.send({ type: "add", shape: serializeShape(shape) });
         }
 
         redraw();
@@ -3048,26 +2289,35 @@
       }
 
       function undo() {
-        if (!historyStack.length) {
-          if (!shapes.length) return;
-          shapes.pop();
-          save();
-          net.send({ type: "replace", shapes: shapes.map(serializeShape) });
-          redraw();
-          return;
+        if (!historyStack.length) return;
+
+        redoStack.push(snapshotShapes());
+        if (redoStack.length > 100) {
+          redoStack.shift();
         }
 
         const snapshot = historyStack.pop();
         restoreSnapshot(snapshot);
-        net.send({ type: "replace", shapes: shapes.map(serializeShape) });
+      }
+
+      function redo() {
+        if (!redoStack.length) return;
+
+        historyStack.push(snapshotShapes());
+        if (historyStack.length > 100) {
+          historyStack.shift();
+        }
+
+        const snapshot = redoStack.pop();
+        restoreSnapshot(snapshot);
       }
 
       function clearAll() {
+        stopAnimation();
         if (!shapes.length) return;
         recordHistory();
         shapes.length = 0;
         save();
-        net.send({ type: "clear" });
         redraw();
       }
 
@@ -3083,8 +2333,10 @@
       }
 
       function exportPNG() {
+        const wasPlaying = isPlaying;
+        if (wasPlaying) stopAnimation();
         canvas.toBlob((blob) => {
-          if (blob) downloadBlob(blob, "drawbuddies.png");
+          if (blob) downloadBlob(blob, "rough-drawing.png");
         }, "image/png");
       }
 
@@ -3113,17 +2365,73 @@
       }
 
       function makeSvgNode(rsvg, shape) {
-        return shape.type === "text" ? makeSvgTextNode(shape) : buildRoughShape(rsvg, shape);
+        const opts = roughOptions(shape.options, shape.type);
+
+        if (shape.type === "text") {
+          return makeSvgTextNode(shape);
+        }
+
+        if (shape.type === "rectangle") {
+          const box = normalizedBox(shape.geom);
+          return rsvg.rectangle(box.x, box.y, box.width, box.height, opts);
+        }
+
+        if (shape.type === "ellipse") {
+          const box = normalizedBox(shape.geom);
+          return rsvg.ellipse(
+            box.x + box.width / 2,
+            box.y + box.height / 2,
+            box.width,
+            box.height,
+            opts
+          );
+        }
+
+        if (shape.type === "line") {
+          const g = shape.geom;
+          return rsvg.line(g.x1, g.y1, g.x2, g.y2, opts);
+        }
+
+        if (shape.type === "curve") {
+          const points = curveRenderablePoints(shape.geom.points);
+          if (points.length < 2) return null;
+
+          return rsvg.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.85),
+            bowing: Math.min(opts.bowing, 0.7),
+            curveFitting: 0.82,
+            curveTightness: 0.18
+          });
+        }
+
+        if (shape.type === "smart") {
+          const points = freehandRenderablePoints(shape.geom.points);
+          if (points.length < 2) return null;
+
+          return rsvg.curve(points, {
+            ...opts,
+            fill: undefined,
+            fillStyle: undefined,
+            roughness: Math.min(opts.roughness, 0.9),
+            bowing: Math.min(opts.bowing, 0.8),
+            curveFitting: 0.85,
+            curveTightness: 0.15
+          });
+        }
+
+        return null;
       }
 
       function exportSVG() {
         const ns = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(ns, "svg");
-        const camera = cameraOffset();
         svg.setAttribute("xmlns", ns);
         svg.setAttribute("width", String(viewWidth));
         svg.setAttribute("height", String(viewHeight));
-        svg.setAttribute("viewBox", `${camera.x} ${camera.y} ${viewWidth} ${viewHeight}`);
+        svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
 
         const defs = document.createElementNS(ns, "defs");
         const style = document.createElementNS(ns, "style");
@@ -3131,13 +2439,75 @@
         defs.appendChild(style);
         svg.appendChild(defs);
 
+        const pattern = document.createElementNS(ns, "pattern");
+        pattern.setAttribute("id", "notebookPattern");
+        pattern.setAttribute("patternUnits", "userSpaceOnUse");
+        pattern.setAttribute("width", "28");
+        pattern.setAttribute("height", "28");
+
+        const patternBg = document.createElementNS(ns, "rect");
+        patternBg.setAttribute("width", "28");
+        patternBg.setAttribute("height", "28");
+        patternBg.setAttribute("fill", "#fbfdff");
+        pattern.appendChild(patternBg);
+
+        const rule = document.createElementNS(ns, "line");
+        rule.setAttribute("x1", "0");
+        rule.setAttribute("y1", "27.5");
+        rule.setAttribute("x2", "28");
+        rule.setAttribute("y2", "27.5");
+        rule.setAttribute("stroke", "rgba(95,145,210,0.10)");
+        rule.setAttribute("stroke-width", "1");
+        pattern.appendChild(rule);
+
+        const crossH = document.createElementNS(ns, "line");
+        crossH.setAttribute("x1", "10.5");
+        crossH.setAttribute("y1", "14");
+        crossH.setAttribute("x2", "17.5");
+        crossH.setAttribute("y2", "14");
+        crossH.setAttribute("stroke", "rgba(95,145,210,0.095)");
+        crossH.setAttribute("stroke-width", "1");
+        pattern.appendChild(crossH);
+
+        const crossV = document.createElementNS(ns, "line");
+        crossV.setAttribute("x1", "14");
+        crossV.setAttribute("y1", "10.5");
+        crossV.setAttribute("x2", "14");
+        crossV.setAttribute("y2", "17.5");
+        crossV.setAttribute("stroke", "rgba(95,145,210,0.095)");
+        crossV.setAttribute("stroke-width", "1");
+        pattern.appendChild(crossV);
+
+        defs.appendChild(pattern);
+
         const bg = document.createElementNS(ns, "rect");
-        bg.setAttribute("x", String(camera.x));
-        bg.setAttribute("y", String(camera.y));
         bg.setAttribute("width", "100%");
         bg.setAttribute("height", "100%");
-        bg.setAttribute("fill", "#fbfdff");
+        bg.setAttribute("fill", "url(#notebookPattern)");
         svg.appendChild(bg);
+
+        const margin = document.createElementNS(ns, "line");
+        margin.setAttribute("x1", "44.5");
+        margin.setAttribute("y1", "0");
+        margin.setAttribute("x2", "44.5");
+        margin.setAttribute("y2", String(viewHeight));
+        margin.setAttribute("stroke", "rgba(120,155,205,0.08)");
+        margin.setAttribute("stroke-width", "1");
+        svg.appendChild(margin);
+
+        const guide = puppetGuide();
+        for (const box of [guide.body, guide.leftLeg, guide.rightLeg]) {
+          const guideRect = document.createElementNS(ns, "rect");
+          guideRect.setAttribute("x", String(box.x));
+          guideRect.setAttribute("y", String(box.y));
+          guideRect.setAttribute("width", String(box.width));
+          guideRect.setAttribute("height", String(box.height));
+          guideRect.setAttribute("fill", "rgba(45,83,135,0.018)");
+          guideRect.setAttribute("stroke", "rgba(45,83,135,0.18)");
+          guideRect.setAttribute("stroke-width", "1.2");
+          guideRect.setAttribute("stroke-dasharray", "8 7");
+          svg.appendChild(guideRect);
+        }
 
         const rsvg = rough.svg(svg);
 
@@ -3151,645 +2521,37 @@
           type: "image/svg+xml;charset=utf-8"
         });
 
-        downloadBlob(blob, "drawbuddies.svg");
+        downloadBlob(blob, "rough-drawing.svg");
       }
 
-      const avatarEditor = (() => {
-        const overlay = document.getElementById("avatarOverlay");
-        const editorCanvas = document.getElementById("avatarCanvas");
-        const editorCtx = editorCanvas.getContext("2d", { alpha: false });
-        let editorRc = rough.canvas(editorCanvas);
-        const editorGen = rough.generator();
-        const editorShapes = [];
-        let editorTool = "smart";
-        let editorActiveDrag = null;
-        let editorSelectedIds = [];
-        let editorPlaying = false;
-        let editorAnimationFrame = null;
 
-        const editorControls = {
-          strokeColor: document.getElementById("avatarStrokeColor"),
-          roughness: document.getElementById("avatarRoughness"),
-          roughnessValue: document.getElementById("avatarRoughnessValue"),
-          bowing: document.getElementById("avatarBowing"),
-          bowingValue: document.getElementById("avatarBowingValue"),
-          strokeWidth: document.getElementById("avatarStrokeWidth"),
-          strokeWidthValue: document.getElementById("avatarStrokeWidthValue"),
-          playBtn: document.getElementById("avatarPlayBtn"),
-          clearBtn: document.getElementById("avatarClearBtn"),
-          cancelBtn: document.getElementById("avatarCancelBtn"),
-          okayBtn: document.getElementById("avatarOkayBtn")
-        };
+      function animationLoop(timestamp) {
+        if (!isPlaying) return;
+        if (!animationStart) animationStart = timestamp;
+        redraw();
+        animationFrameId = requestAnimationFrame(animationLoop);
+      }
 
-        function editorOptions(seed = newSeed()) {
-          return {
-            stroke: editorControls.strokeColor.value,
-            fill: null,
-            fillStyle: "hachure",
-            roughness: clampNumber(editorControls.roughness.value, 1.5),
-            bowing: clampNumber(editorControls.bowing.value, 1),
-            strokeWidth: clampNumber(editorControls.strokeWidth.value, 2),
-            seed
-          };
+      function playAnimation() {
+        if (isPlaying) return;
+        isPlaying = true;
+        animationStart = 0;
+        controls.playBtn.classList.add("active");
+        animationFrameId = requestAnimationFrame(animationLoop);
+      }
+
+      function stopAnimation() {
+        isPlaying = false;
+        animationStart = 0;
+        controls.playBtn.classList.remove("active");
+
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
         }
 
-        function buildEditorDrawable(shape) {
-          return shape.type === "text" ? null : buildRoughShape(editorGen, shape);
-        }
-
-        function editorOrderedShapes() {
-          return editorShapes
-            .map((shape, index) => ({ shape, index, rank: shapeZRank(shape) }))
-            .sort((a, b) => {
-              if (a.rank !== b.rank) return a.rank - b.rank;
-              return a.index - b.index;
-            })
-            .map((entry) => entry.shape);
-        }
-
-        function editorPoint(event) {
-          const rect = editorCanvas.getBoundingClientRect();
-          return {
-            x: ((event.clientX - rect.left) / rect.width) * AVATAR_FRAME.width,
-            y: ((event.clientY - rect.top) / rect.height) * AVATAR_FRAME.height
-          };
-        }
-
-        function editorPointToScreen(point) {
-          const rect = editorCanvas.getBoundingClientRect();
-          return {
-            x: rect.left + (point.x / AVATAR_FRAME.width) * rect.width,
-            y: rect.top + (point.y / AVATAR_FRAME.height) * rect.height
-          };
-        }
-
-        function editorSelectedShapes() {
-          const selected = new Set(editorSelectedIds);
-          return editorOrderedShapes().filter((shape) => selected.has(shape.id));
-        }
-
-        function editorSelectionBounds() {
-          const items = editorSelectedShapes();
-          if (!items.length) return null;
-
-          let minX = Infinity;
-          let minY = Infinity;
-          let maxX = -Infinity;
-          let maxY = -Infinity;
-
-          for (const shape of items) {
-            const box = shapeBounds(shape);
-            minX = Math.min(minX, box.x);
-            minY = Math.min(minY, box.y);
-            maxX = Math.max(maxX, box.x + box.width);
-            maxY = Math.max(maxY, box.y + box.height);
-          }
-
-          return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-        }
-
-        function drawEditorSelection() {
-          const box = editorSelectionBounds();
-          if (!box) return;
-
-          editorCtx.save();
-          editorCtx.setLineDash([8, 6]);
-          editorCtx.lineWidth = 1.5;
-          editorCtx.strokeStyle = "rgba(47, 101, 255, 0.9)";
-          editorCtx.fillStyle = "rgba(47, 101, 255, 0.08)";
-          editorCtx.fillRect(box.x - 4, box.y - 4, box.width + 8, box.height + 8);
-          editorCtx.strokeRect(box.x - 4, box.y - 4, box.width + 8, box.height + 8);
-          editorCtx.restore();
-        }
-
-        function drawEditorSelectMarquee(shape) {
-          const box = normalizedBox(shape.geom);
-          editorCtx.save();
-          editorCtx.setLineDash([8, 6]);
-          editorCtx.lineWidth = 1.5;
-          editorCtx.strokeStyle = "rgba(47, 101, 255, 0.95)";
-          editorCtx.fillStyle = "rgba(47, 101, 255, 0.07)";
-          editorCtx.fillRect(box.x, box.y, box.width, box.height);
-          editorCtx.strokeRect(box.x, box.y, box.width, box.height);
-          editorCtx.restore();
-        }
-
-        function drawEditorText(shape) {
-          drawTextShape(editorCtx, shape);
-        }
-
-        function drawEditorShape(shape) {
-          if (shape.type === "text") {
-            drawEditorText(shape);
-            return;
-          }
-
-          if (!shape.drawable) {
-            shape.drawable = buildEditorDrawable(shape);
-          }
-
-          if (shape.drawable) {
-            editorRc.draw(shape.drawable);
-          }
-        }
-
-        function drawEditorBackground() {
-          editorCtx.save();
-          editorCtx.fillStyle = "#fbfdff";
-          editorCtx.fillRect(0, 0, AVATAR_FRAME.width, AVATAR_FRAME.height);
-          editorCtx.strokeStyle = "rgba(95, 145, 210, 0.10)";
-          editorCtx.lineWidth = 1;
-          editorCtx.beginPath();
-          for (let y = 28; y < AVATAR_FRAME.height; y += 28) {
-            editorCtx.moveTo(0, y + 0.5);
-            editorCtx.lineTo(AVATAR_FRAME.width, y + 0.5);
-          }
-          editorCtx.stroke();
-          editorCtx.restore();
-        }
-
-        function drawEditor(previewShape = null) {
-          drawEditorBackground();
-          drawPuppetGuide(editorCtx, avatarGuide());
-
-          for (const shape of editorOrderedShapes()) {
-            const part = avatarPartForShape(shape);
-            const transform = avatarAnimationTransform(part, editorPlaying);
-            editorCtx.save();
-            editorCtx.translate(transform.cx, transform.cy);
-            editorCtx.rotate(transform.rotate);
-            editorCtx.translate(-transform.cx + transform.x, -transform.cy + transform.y);
-            drawEditorShape(shape);
-            editorCtx.restore();
-          }
-
-          drawEditorSelection();
-
-          if (previewShape) {
-            if (previewShape.type === "text") {
-              drawEditorText(previewShape);
-            } else if (previewShape.type === "select-box") {
-              drawEditorSelectMarquee(previewShape);
-            } else {
-              const drawable = buildEditorDrawable(previewShape);
-              if (drawable) editorRc.draw(drawable);
-            }
-          }
-
-          updateOkayState();
-        }
-
-        function resizeEditorCanvas() {
-          const rect = editorCanvas.getBoundingClientRect();
-          const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 4));
-          const scale = Math.max(1, rect.width / AVATAR_FRAME.width);
-          editorCanvas.width = Math.round(AVATAR_FRAME.width * scale * ratio);
-          editorCanvas.height = Math.round(AVATAR_FRAME.height * scale * ratio);
-          editorCtx.setTransform(scale * ratio, 0, 0, scale * ratio, 0, 0);
-          editorRc = rough.canvas(editorCanvas);
-          drawEditor();
-        }
-
-        function makeEditorShape(type, start, end, points, options) {
-          if (type === "smart") {
-            return {
-              id: newId(),
-              type,
-              geom: { points: points.map(roundPoint) },
-              options: { ...options },
-              drawable: null
-            };
-          }
-
-          return {
-            id: newId(),
-            type,
-            geom: {
-              x1: round1(start.x),
-              y1: round1(start.y),
-              x2: round1(end.x),
-              y2: round1(end.y)
-            },
-            options: { ...options },
-            drawable: null
-          };
-        }
-
-        function editorPreviewShape() {
-          if (!editorActiveDrag) return null;
-
-          if (editorActiveDrag.tool === "smart") {
-            return makeEditorShape(
-              "smart",
-              editorActiveDrag.start,
-              editorActiveDrag.current,
-              editorActiveDrag.points,
-              editorActiveDrag.options
-            );
-          }
-
-          if (editorActiveDrag.tool === "select") {
-            return {
-              id: "avatar-select-box",
-              type: "select-box",
-              geom: {
-                x1: round1(editorActiveDrag.start.x),
-                y1: round1(editorActiveDrag.start.y),
-                x2: round1(editorActiveDrag.current.x),
-                y2: round1(editorActiveDrag.current.y)
-              },
-              options: {}
-            };
-          }
-
-          return null;
-        }
-
-        function editorHitTest(point) {
-          const entries = editorShapes
-            .map((shape, index) => ({ shape, index, rank: shapeZRank(shape) }))
-            .sort((a, b) => {
-              if (a.rank !== b.rank) return a.rank - b.rank;
-              return a.index - b.index;
-            });
-
-          for (let i = entries.length - 1; i >= 0; i--) {
-            const { shape, index } = entries[i];
-            if (pointInShapeForDragging(shape, point)) {
-              return { shape, index };
-            }
-          }
-
-          return null;
-        }
-
-        function applyEditorSelection(shape) {
-          const box = normalizedBox(shape.geom);
-          editorSelectedIds = editorOrderedShapes()
-            .filter((item) => boxContainsBox(box, shapeBounds(item)))
-            .map((item) => item.id);
-        }
-
-        function pushEditorStrokePoint(point) {
-          if (!editorActiveDrag || editorActiveDrag.tool !== "smart") return;
-          const last = editorActiveDrag.points[editorActiveDrag.points.length - 1];
-          if (!last || Math.hypot(point.x - last[0], point.y - last[1]) >= 3.5) {
-            editorActiveDrag.points.push([point.x, point.y]);
-          }
-        }
-
-        function tryApplyEditorFill(strokeShape) {
-          const points = simplifyPoints(strokeShape.geom.points, 3.5);
-          if (!points || points.length < 10) return false;
-
-          let target = null;
-          let bestScore = 0;
-          for (let i = editorShapes.length - 1; i >= 0; i--) {
-            const shape = editorShapes[i];
-            if (shape.type !== "rectangle" && shape.type !== "ellipse") continue;
-            let inside = 0;
-            for (const point of points) {
-              if (shapeContainsPoint(shape, point, 10)) inside++;
-            }
-            const ratio = inside / points.length;
-            if (ratio > 0.92 && ratio > bestScore) {
-              bestScore = ratio;
-              target = shape;
-            }
-          }
-
-          if (!target || !fillStrokeLooksIntentional(points, target)) return false;
-          const fillStyle = chooseSmartFillStyle(target, points);
-          if (!fillStyle) return false;
-
-          target.options.fill = editorControls.strokeColor.value;
-          target.options.fillStyle = fillStyle;
-          target.drawable = buildEditorDrawable(target);
-          drawEditor();
-          return true;
-        }
-
-        function openEditorText(point) {
-          const editor = document.createElement("textarea");
-          editor.className = "avatar-text-editor";
-          editor.spellcheck = false;
-          editor.placeholder = "Text";
-          const screen = editorPointToScreen(point);
-          editor.style.left = `${Math.round(screen.x)}px`;
-          editor.style.top = `${Math.round(screen.y)}px`;
-          document.body.appendChild(editor);
-
-          const commit = () => {
-            if (!editor.parentNode) return;
-            const text = editor.value.trimEnd();
-            editor.remove();
-            if (!text.trim()) {
-              drawEditor();
-              return;
-            }
-
-            const shape = {
-              id: newId(),
-              type: "text",
-              geom: {
-                x: round1(point.x),
-                y: round1(point.y),
-                text,
-                fontSize: 22
-              },
-              options: editorOptions(newSeed()),
-              drawable: null
-            };
-            editorShapes.push(shape);
-            drawEditor();
-          };
-
-          const cancel = () => {
-            if (!editor.parentNode) return;
-            editor.remove();
-            drawEditor();
-          };
-
-          editor.addEventListener("input", () => autosizeTextEditor(editor));
-          editor.addEventListener("keydown", (event) => {
-            event.stopPropagation();
-            if (event.key === "Escape") {
-              event.preventDefault();
-              cancel();
-            }
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              commit();
-            }
-          });
-          editor.addEventListener("blur", commit);
-
-          requestAnimationFrame(() => {
-            editor.focus();
-            autosizeTextEditor(editor);
-          });
-        }
-
-        function onEditorPointerDown(event) {
-          if (event.button !== undefined && event.button !== 0) return;
-          event.preventDefault();
-          editorCanvas.setPointerCapture(event.pointerId);
-          const point = editorPoint(event);
-
-          if (editorTool === "text") {
-            openEditorText(point);
-            return;
-          }
-
-          if (editorTool === "hand") {
-            const hit = editorHitTest(point);
-            if (!hit) return;
-            const draggingSelection = editorSelectedIds.includes(hit.shape.id) && editorSelectedIds.length > 0;
-            const dragShapes = draggingSelection
-              ? editorShapes.filter((shape) => editorSelectedIds.includes(shape.id))
-              : [hit.shape];
-
-            editorActiveDrag = {
-              pointerId: event.pointerId,
-              tool: "hand",
-              start: point,
-              current: point,
-              dragShapes,
-              originalGeoms: dragShapes.map((shape) => ({ id: shape.id, geom: clone(shape.geom) })),
-              moved: false
-            };
-            return;
-          }
-
-          if (editorTool === "select") {
-            editorActiveDrag = {
-              pointerId: event.pointerId,
-              tool: "select",
-              start: point,
-              current: point
-            };
-            drawEditor(editorPreviewShape());
-            return;
-          }
-
-          editorActiveDrag = {
-            pointerId: event.pointerId,
-            tool: "smart",
-            start: point,
-            current: point,
-            options: editorOptions(newSeed()),
-            points: [[point.x, point.y]]
-          };
-          drawEditor(editorPreviewShape());
-        }
-
-        function onEditorPointerMove(event) {
-          if (!editorActiveDrag || editorActiveDrag.pointerId !== event.pointerId) return;
-          event.preventDefault();
-
-          if (editorActiveDrag.tool === "hand") {
-            const point = editorPoint(event);
-            const dx = point.x - editorActiveDrag.start.x;
-            const dy = point.y - editorActiveDrag.start.y;
-            editorActiveDrag.current = point;
-            editorActiveDrag.moved = Math.hypot(dx, dy) > 1.5;
-
-            const originalById = new Map(editorActiveDrag.originalGeoms.map((item) => [item.id, item.geom]));
-            for (const shape of editorActiveDrag.dragShapes) {
-              const originalGeom = originalById.get(shape.id);
-              shape.geom = translateGeom(originalGeom, dx, dy);
-              shape.drawable = buildEditorDrawable(shape);
-            }
-            drawEditor();
-            return;
-          }
-
-          if (editorActiveDrag.tool === "select") {
-            editorActiveDrag.current = editorPoint(event);
-            drawEditor(editorPreviewShape());
-            return;
-          }
-
-          const events =
-            typeof event.getCoalescedEvents === "function"
-              ? event.getCoalescedEvents()
-              : [event];
-          for (const e of events) {
-            const point = editorPoint(e);
-            editorActiveDrag.current = point;
-            pushEditorStrokePoint(point);
-          }
-          drawEditor(editorPreviewShape());
-        }
-
-        function finishEditorPointer(event) {
-          if (!editorActiveDrag || editorActiveDrag.pointerId !== event.pointerId) return;
-          event.preventDefault();
-          try {
-            editorCanvas.releasePointerCapture(event.pointerId);
-          } catch {
-            // Pointer capture may already be released.
-          }
-
-          if (editorActiveDrag.tool === "hand") {
-            editorActiveDrag = null;
-            drawEditor();
-            return;
-          }
-
-          if (editorActiveDrag.tool === "select") {
-            const shape = editorPreviewShape();
-            editorActiveDrag = null;
-            if (shape && isMeaningful(shape)) {
-              applyEditorSelection(shape);
-            } else {
-              editorSelectedIds = [];
-            }
-            drawEditor();
-            return;
-          }
-
-          let shape = editorPreviewShape();
-          editorActiveDrag = null;
-          if (shape && shape.type === "smart") {
-            if (tryApplyEditorFill(shape)) return;
-            shape = smartShapeFromStroke(shape);
-            shape.drawable = buildEditorDrawable(shape);
-          }
-
-          if (isMeaningful(shape)) {
-            editorShapes.push(shape);
-          }
-          drawEditor();
-        }
-
-        function cancelEditorPointer(event) {
-          if (!editorActiveDrag || editorActiveDrag.pointerId !== event.pointerId) return;
-          editorActiveDrag = null;
-          drawEditor();
-        }
-
-        function updateControlLabels() {
-          editorControls.roughnessValue.textContent = Number(editorControls.roughness.value).toFixed(1);
-          editorControls.bowingValue.textContent = Number(editorControls.bowing.value).toFixed(1);
-          editorControls.strokeWidthValue.textContent = Number(editorControls.strokeWidth.value).toFixed(1);
-        }
-
-        function updateOkayState() {
-          editorControls.okayBtn.disabled = editorShapes.length === 0;
-        }
-
-        function stopPreview() {
-          editorPlaying = false;
-          avatarAnimationStart = 0;
-          editorControls.playBtn.classList.remove("active");
-          editorControls.playBtn.textContent = "Play";
-          if (editorAnimationFrame !== null) {
-            cancelAnimationFrame(editorAnimationFrame);
-            editorAnimationFrame = null;
-          }
-        }
-
-        function previewLoop() {
-          if (!editorPlaying) return;
-          drawEditor();
-          editorAnimationFrame = requestAnimationFrame(previewLoop);
-        }
-
-        function togglePreview() {
-          if (editorPlaying) {
-            stopPreview();
-            drawEditor();
-            return;
-          }
-
-          editorPlaying = true;
-          avatarAnimationStart = 0;
-          editorControls.playBtn.classList.add("active");
-          editorControls.playBtn.textContent = "Stop";
-          editorAnimationFrame = requestAnimationFrame(previewLoop);
-        }
-
-        function clearDraft() {
-          stopPreview();
-          editorShapes.length = 0;
-          editorSelectedIds = [];
-          drawEditor();
-        }
-
-        function close() {
-          stopPreview();
-          overlay.hidden = true;
-          editorActiveDrag = null;
-          pressedMovementKeys.clear();
-        }
-
-        function commit() {
-          if (!editorShapes.length) return;
-          localPlayer.avatar = hydrateAvatarShapeList(editorShapes.map(serializeShape));
-          storeJson(AVATAR_STORAGE_KEY, localPlayer.avatar.map(serializeShape));
-          net.sendPlayerSet();
-          close();
-          redraw();
-        }
-
-        function open() {
-          stopPreview();
-          editorShapes.length = 0;
-          editorShapes.push(...hydrateAvatarShapeList(localPlayer.avatar.map(serializeShape)));
-          editorSelectedIds = [];
-          editorActiveDrag = null;
-          overlay.hidden = false;
-          updateControlLabels();
-          requestAnimationFrame(resizeEditorCanvas);
-        }
-
-        document.querySelectorAll(".avatar-tool").forEach((button) => {
-          button.addEventListener("click", () => {
-            editorTool = button.dataset.avatarTool;
-            if (editorTool === "smart") {
-              editorSelectedIds = [];
-            }
-            document.querySelectorAll(".avatar-tool").forEach((item) => {
-              item.classList.toggle("active", item === button);
-            });
-            drawEditor();
-          });
-        });
-
-        [
-          editorControls.roughness,
-          editorControls.bowing,
-          editorControls.strokeWidth
-        ].forEach((input) => {
-          input.addEventListener("input", updateControlLabels);
-          input.addEventListener("change", updateControlLabels);
-        });
-
-        editorControls.playBtn.addEventListener("click", togglePreview);
-        editorControls.clearBtn.addEventListener("click", clearDraft);
-        editorControls.cancelBtn.addEventListener("click", close);
-        editorControls.okayBtn.addEventListener("click", commit);
-        overlay.addEventListener("click", (event) => {
-          if (event.target === overlay) close();
-        });
-        editorCanvas.addEventListener("pointerdown", onEditorPointerDown);
-        editorCanvas.addEventListener("pointermove", onEditorPointerMove);
-        editorCanvas.addEventListener("pointerup", finishEditorPointer);
-        editorCanvas.addEventListener("pointercancel", cancelEditorPointer);
-        window.addEventListener("resize", () => {
-          if (!overlay.hidden) resizeEditorCanvas();
-        });
-
-        updateControlLabels();
-        return {
-          open,
-          close,
-          isOpen() {
-            return !overlay.hidden;
-          }
-        };
-      })();
+        redraw();
+      }
 
       function refreshControlLabels() {
         controls.roughnessValue.textContent = Number(controls.roughness.value).toFixed(1);
@@ -3824,29 +2586,29 @@
         input.addEventListener("change", refreshControlLabels);
       });
 
+      controls.playBtn.addEventListener("click", playAnimation);
+      controls.stopBtn.addEventListener("click", stopAnimation);
       controls.undoBtn.addEventListener("click", undo);
+      controls.redoBtn.addEventListener("click", redo);
       controls.clearBtn.addEventListener("click", clearAll);
       controls.pngBtn.addEventListener("click", exportPNG);
       controls.svgBtn.addEventListener("click", exportSVG);
-      controls.avatarBtn.addEventListener("click", () => avatarEditor.open());
 
       document.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
-        if (handleMovementKey(event, true)) return;
-
-        if (avatarEditor.isOpen() && key === "escape") {
-          event.preventDefault();
-          avatarEditor.close();
-          return;
-        }
 
         if ((event.metaKey || event.ctrlKey) && key === "z" && !event.shiftKey) {
           event.preventDefault();
           undo();
         }
-      });
-      document.addEventListener("keyup", (event) => {
-        handleMovementKey(event, false);
+
+        if (
+          ((event.metaKey || event.ctrlKey) && key === "z" && event.shiftKey) ||
+          (event.ctrlKey && key === "y")
+        ) {
+          event.preventDefault();
+          redo();
+        }
       });
 
       canvas.addEventListener("pointerdown", onPointerDown);
@@ -3871,10 +2633,7 @@
 
       refreshControlLabels();
       load();
-      loadPlayerState();
-      updateMovementHint();
       resize();
-      net.connect();
     })();
   </script>
 </body>
