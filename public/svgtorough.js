@@ -72,7 +72,7 @@
     const stroke = normalizeColor(pick("stroke", "#000"));
     const fill = normalizeColor(pick("fill", null));
 
-    const rawStrokeWidth = Number(pick("stroke-width", 1));
+    const rawStrokeWidth = parseFloat(pick("stroke-width", 1));
     const strokeWidth = Math.max(0.5, Number.isFinite(rawStrokeWidth) ? rawStrokeWidth : 1);
 
     return { stroke, fill, strokeWidth };

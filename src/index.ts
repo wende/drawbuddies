@@ -153,7 +153,20 @@ const imagineHits = new Map<string, number[]>();
 
 function imagineRateLimited(ip: string): boolean {
   const now = Date.now();
+  if (imagineHits.size > 1000) {
+    for (const [key, times] of imagineHits.entries()) {
+      const active = times.filter((t) => now - t < IMAGINE_WINDOW_MS);
+      if (active.length === 0) {
+        imagineHits.delete(key);
+      } else if (active.length !== times.length) {
+        imagineHits.set(key, active);
+      }
+    }
+  }
   const recent = (imagineHits.get(ip) || []).filter((t) => now - t < IMAGINE_WINDOW_MS);
+  if (recent.length === 0) {
+    imagineHits.delete(ip);
+  }
   if (recent.length >= IMAGINE_MAX_PER_WINDOW) {
     imagineHits.set(ip, recent);
     return true;

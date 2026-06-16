@@ -3042,7 +3042,12 @@
         path.setAttribute("d", d);
         svg.appendChild(path);
         document.body.appendChild(svg);
-        const box = path.getBBox();
+        let box = { x: 0, y: 0, width: 0, height: 0 };
+        try {
+          box = path.getBBox();
+        } catch (err) {
+          console.warn("Failed to measure path bounds:", err);
+        }
         document.body.removeChild(svg);
         return {
           x: round1(box.x + ox),
@@ -3188,7 +3193,16 @@
         }
 
         if (shape.type === "path" && shape.geom && typeof shape.geom.d === "string") {
-          return measurePathBounds(shape.geom.d, shape.geom.ox, shape.geom.oy);
+          if (!shape._pathBounds || shape._pathBoundsD !== shape.geom.d) {
+            shape._pathBounds = measurePathBounds(shape.geom.d, 0, 0);
+            shape._pathBoundsD = shape.geom.d;
+          }
+          return {
+            x: round1(shape._pathBounds.x + (shape.geom.ox || 0)),
+            y: round1(shape._pathBounds.y + (shape.geom.oy || 0)),
+            width: shape._pathBounds.width,
+            height: shape._pathBounds.height
+          };
         }
 
         if (shape.geom.points) {
