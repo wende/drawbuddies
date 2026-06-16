@@ -50,20 +50,28 @@
       cursor: crosshair;
     }
 
-    body.hand-mode canvas {
+    body.hand-mode #canvas {
       cursor: grab;
     }
 
-    body.dragging-shape canvas {
+    body.dragging-shape #canvas {
       cursor: grabbing;
     }
 
-    body.text-mode canvas {
+    body.text-mode #canvas {
       cursor: text;
     }
 
-    body.select-mode canvas {
+    body.select-mode #canvas {
       cursor: cell;
+    }
+
+    body.scale-mode #canvas {
+      cursor: nwse-resize;
+    }
+
+    body.rotate-mode #canvas {
+      cursor: alias;
     }
 
     .toolbar {
@@ -301,6 +309,14 @@
       touch-action: none;
     }
 
+    #avatarCanvas.scale-mode {
+      cursor: nwse-resize;
+    }
+
+    #avatarCanvas.rotate-mode {
+      cursor: alias;
+    }
+
     .avatar-text-editor {
       position: fixed;
       z-index: 40;
@@ -387,6 +403,52 @@
       -webkit-backdrop-filter: blur(6px);
     }
 
+    .imagine-prompt {
+      position: fixed;
+      left: 50%;
+      bottom: 72px;
+      z-index: 30;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: min(560px, calc(100vw - 24px));
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: 0 16px 50px var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .imagine-prompt input {
+      width: 320px;
+      max-width: 60vw;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline: none;
+      background: rgba(255, 252, 244, 0.92);
+      color: var(--ink);
+      font: inherit;
+    }
+
+    .imagine-toast {
+      position: fixed;
+      z-index: 40;
+      max-width: 220px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      color: #b3261e;
+      font-family: 'Excalifont', cursive;
+      font-size: 14px;
+      box-shadow: 0 12px 36px var(--shadow);
+      pointer-events: none;
+    }
+
     @media (max-width: 760px) {
       .toolbar {
         bottom: 10px;
@@ -429,7 +491,7 @@
   <canvas id="canvas" aria-label="Rough drawing canvas"></canvas>
 
   <div class="hint">
-    Smart draws and recognizes shapes, curves, and deliberate scribble-fills. Select creates a draggable group from a rectangle. Hand drags one shape or the current selection. Text adds Excalifont labels. Drawings sync live with everyone in the room. Cmd/Ctrl+Z undo.
+    Select creates a group from a rectangle. Move, Scale, and Rotate transform one shape or the current selection. Text adds Excalifont labels. Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo.
   </div>
 
   <div class="topbar">
@@ -444,9 +506,12 @@
 
   <div class="toolbar" role="toolbar" aria-label="Drawing controls">
     <div class="group" aria-label="Tools">
-      <button type="button" class="tool active" data-tool="smart">Smart</button>
+      <button type="button" class="tool active" data-tool="smart">Draw</button>
+      <button type="button" class="tool" data-tool="imagine">Imagine</button>
       <button type="button" class="tool" data-tool="select">Select</button>
-      <button type="button" class="tool" data-tool="hand">Hand</button>
+      <button type="button" class="tool" data-tool="hand">Move</button>
+      <button type="button" class="tool" data-tool="scale">Scale</button>
+      <button type="button" class="tool" data-tool="rotate">Rotate</button>
       <button type="button" class="tool" data-tool="text">Text</button>
     </div>
 
@@ -479,9 +544,8 @@
 
     <div class="group">
       <button id="undoBtn" type="button">Undo</button>
+      <button id="redoBtn" type="button">Redo</button>
       <button id="clearBtn" type="button">Clear</button>
-      <button id="pngBtn" type="button">Export PNG</button>
-      <button id="svgBtn" type="button">Export SVG</button>
     </div>
   </div>
 
@@ -494,9 +558,11 @@
         <h2 id="avatarTitle" class="avatar-title">Avatar</h2>
         <div class="avatar-controls" role="toolbar" aria-label="Avatar drawing controls">
           <div class="group" aria-label="Avatar tools">
-            <button type="button" class="avatar-tool active" data-avatar-tool="smart">Smart</button>
+            <button type="button" class="avatar-tool active" data-avatar-tool="smart">Draw</button>
             <button type="button" class="avatar-tool" data-avatar-tool="select">Select</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="hand">Hand</button>
+            <button type="button" class="avatar-tool" data-avatar-tool="hand">Move</button>
+            <button type="button" class="avatar-tool" data-avatar-tool="scale">Scale</button>
+            <button type="button" class="avatar-tool" data-avatar-tool="rotate">Rotate</button>
             <button type="button" class="avatar-tool" data-avatar-tool="text">Text</button>
           </div>
 
@@ -533,6 +599,8 @@
         </div>
 
         <div class="avatar-actions">
+          <button id="avatarUndoBtn" type="button">Undo</button>
+          <button id="avatarRedoBtn" type="button">Redo</button>
           <button id="avatarPlayBtn" type="button">Play</button>
           <button id="avatarClearBtn" type="button">Clear</button>
           <button id="avatarCancelBtn" type="button">Cancel</button>
@@ -543,6 +611,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+  <script src="svgtorough.js"></script>
   <script>
     (() => {
       "use strict";
@@ -571,9 +640,8 @@
         strokeWidthValue: document.getElementById("strokeWidthValue"),
         avatarBtn: document.getElementById("avatarBtn"),
         undoBtn: document.getElementById("undoBtn"),
-        clearBtn: document.getElementById("clearBtn"),
-        pngBtn: document.getElementById("pngBtn"),
-        svgBtn: document.getElementById("svgBtn")
+        redoBtn: document.getElementById("redoBtn"),
+        clearBtn: document.getElementById("clearBtn")
       };
 
       const statusDot = document.getElementById("statusDot");
@@ -598,6 +666,7 @@
 
       const shapes = [];
       const historyStack = [];
+      const redoStack = [];
       const remotePlayers = new Map();
       const pressedMovementKeys = new Set();
 
@@ -635,6 +704,7 @@
         x: 0,
         y: 0,
         moving: false,
+        facing: 1,
         avatar: []
       };
 
@@ -686,7 +756,7 @@
           seed: clampNumber(options.seed, 1)
         };
 
-        if ((type === "rectangle" || type === "ellipse") && options.fill) {
+        if ((type === "rectangle" || type === "ellipse" || type === "path") && options.fill) {
           out.fill = options.fill;
           out.fillStyle = options.fillStyle || "hachure";
         }
@@ -853,6 +923,86 @@
         );
       }
 
+      function shapeRotation(shape) {
+        return shape && shape.geom ? clampNumber(shape.geom.rotation, 0) : 0;
+      }
+
+      function canStoreRotation(shape) {
+        return (
+          shape.type === "rectangle" ||
+          shape.type === "ellipse" ||
+          shape.type === "text" ||
+          shape.type === "group"
+        );
+      }
+
+      function normalizeRotation(angle) {
+        let value = angle;
+        while (value > Math.PI) value -= Math.PI * 2;
+        while (value < -Math.PI) value += Math.PI * 2;
+        return Math.abs(value) < 0.0001 ? 0 : value;
+      }
+
+      function rotatePointObject(point, center, angle) {
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const dx = point.x - center.x;
+        const dy = point.y - center.y;
+        return {
+          x: center.x + dx * cos - dy * sin,
+          y: center.y + dx * sin + dy * cos
+        };
+      }
+
+      function scalePointObject(point, center, factor) {
+        return {
+          x: center.x + (point.x - center.x) * factor,
+          y: center.y + (point.y - center.y) * factor
+        };
+      }
+
+      function boxCorners(box) {
+        return [
+          { x: box.x, y: box.y },
+          { x: box.x + box.width, y: box.y },
+          { x: box.x + box.width, y: box.y + box.height },
+          { x: box.x, y: box.y + box.height }
+        ];
+      }
+
+      function boundsFromPoints(points) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        for (const point of points) {
+          minX = Math.min(minX, point.x);
+          minY = Math.min(minY, point.y);
+          maxX = Math.max(maxX, point.x);
+          maxY = Math.max(maxY, point.y);
+        }
+
+        return {
+          x: minX,
+          y: minY,
+          width: Math.max(0, maxX - minX),
+          height: Math.max(0, maxY - minY)
+        };
+      }
+
+      function rotatedBoxBounds(box, angle) {
+        if (!angle) return box;
+        const center = boxCenter(box);
+        return boundsFromPoints(boxCorners(box).map((point) => rotatePointObject(point, center, angle)));
+      }
+
+      function pointInShapeLocalSpace(shape, point) {
+        const rotation = shapeRotation(shape);
+        if (!rotation || !canStoreRotation(shape)) return point;
+        return rotatePointObject(point, boxCenter(shapeBaseBounds(shape)), -rotation);
+      }
+
       function avatarPartForShape(shape) {
         const box = shapeBounds(shape);
         const center = boxCenter(box);
@@ -877,19 +1027,72 @@
         };
       }
 
-      function drawShapeWithCurrentTransform(shape) {
-        if (shape.type === "text") {
-          drawTextShape(ctx, shape);
+      function drawShapeOn(context, rcInst, buildDrawableForShape, shape) {
+        const pathOffset =
+          shape.type === "path"
+            ? { x: shape.geom.ox || 0, y: shape.geom.oy || 0 }
+            : null;
+
+        const draw = () => {
+          if (shape.type === "text") {
+            drawTextShape(context, shape);
+            return;
+          }
+
+          if (!shape.drawable) {
+            shape.drawable = buildDrawableForShape(shape);
+          }
+
+          if (shape.type === "group") {
+            const drawables = Array.isArray(shape.drawable) ? shape.drawable : [];
+            const ox = shape.geom.ox || 0;
+            const oy = shape.geom.oy || 0;
+            const scale = groupScale(shape.geom);
+            const transformed = ox || oy || scale !== 1;
+            if (transformed) {
+              context.save();
+              context.translate(ox, oy);
+              context.scale(scale, scale);
+            }
+            for (const drawable of drawables) rcInst.draw(drawable);
+            if (transformed) context.restore();
+            return;
+          }
+
+          if (shape.drawable) {
+            if (pathOffset && (pathOffset.x || pathOffset.y)) {
+              context.save();
+              context.translate(pathOffset.x, pathOffset.y);
+              rcInst.draw(shape.drawable);
+              context.restore();
+              return;
+            }
+
+            rcInst.draw(shape.drawable);
+          }
+        };
+
+        const rotation = shapeRotation(shape);
+        if (rotation && canStoreRotation(shape)) {
+          const center = boxCenter(shapeBaseBounds(shape));
+          context.save();
+          context.translate(center.x, center.y);
+          context.rotate(rotation);
+          context.translate(-center.x, -center.y);
+          draw();
+          context.restore();
           return;
         }
 
-        if (!shape.drawable) {
-          shape.drawable = buildDrawable(shape);
-        }
+        draw();
+      }
 
-        if (shape.drawable) {
-          rc.draw(shape.drawable);
-        }
+      function drawShapeWithCurrentTransform(shape) {
+        drawShapeOn(ctx, rc, buildDrawable, shape);
+      }
+
+      function avatarFacingScale(player) {
+        return player && player.facing === -1 ? -1 : 1;
       }
 
       function drawAvatarAt(player, screenX, screenY, moving) {
@@ -900,6 +1103,7 @@
         ctx.save();
         ctx.translate(screenX, screenY + bob);
         ctx.rotate(swivel);
+        ctx.scale(avatarFacingScale(player), 1);
         ctx.translate(-(AVATAR_FRAME.width * scale) / 2, -(AVATAR_FRAME.height * scale) / 2);
         ctx.scale(scale, scale);
 
@@ -1162,18 +1366,71 @@
           return factory.curve(points, curveOpts(opts, SMART_RENDER));
         }
 
+        if (shape.type === "path") {
+          if (!shape.geom || typeof shape.geom.d !== "string" || !shape.geom.d.trim()) {
+            return null;
+          }
+          return factory.path(shape.geom.d, opts);
+        }
+
         return null;
       }
 
       function buildDrawable(shape) {
+        if (shape.type === "group") {
+          return groupChildren(shape)
+            .map((child) => buildRoughShape(gen, child))
+            .filter(Boolean);
+        }
         return shape.type === "text" ? null : buildRoughShape(gen, shape);
+      }
+
+      // Imagined drawings are stored as one "group" shape whose geom.children are
+      // ordinary shapes ({ type, geom, options }) drawn at a shared ox/oy offset.
+      function groupChildren(shape) {
+        return shape.geom && Array.isArray(shape.geom.children) ? shape.geom.children : [];
+      }
+
+      // A child point p maps to world space as scale*p + (ox, oy).
+      function groupScale(geom) {
+        const s = geom && Number(geom.scale);
+        return Number.isFinite(s) && s > 0 ? s : 1;
+      }
+
+      function groupBounds(shape) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const child of groupChildren(shape)) {
+          const b = shapeBaseBounds(child);
+          minX = Math.min(minX, b.x);
+          minY = Math.min(minY, b.y);
+          maxX = Math.max(maxX, b.x + b.width);
+          maxY = Math.max(maxY, b.y + b.height);
+        }
+        const ox = (shape.geom && shape.geom.ox) || 0;
+        const oy = (shape.geom && shape.geom.oy) || 0;
+        const scale = groupScale(shape.geom);
+        if (!Number.isFinite(minX)) return { x: ox, y: oy, width: 0, height: 0 };
+        return {
+          x: minX * scale + ox,
+          y: minY * scale + oy,
+          width: (maxX - minX) * scale,
+          height: (maxY - minY) * scale
+        };
       }
 
       function isMeaningful(shape) {
         if (!shape) return false;
 
+        if (shape.type === "group") {
+          return groupChildren(shape).length > 0;
+        }
+
         if (shape.type === "text") {
           return Boolean(shape.geom && String(shape.geom.text || "").trim());
+        }
+
+        if (shape.type === "path") {
+          return Boolean(shape.geom && typeof shape.geom.d === "string" && shape.geom.d.trim());
         }
 
         if (shape.type === "select-box") {
@@ -1441,7 +1698,7 @@
       function rectangleStraightEdgeEvidence(points, bounds) {
         const { minX, minY, maxX, maxY, width, height } = bounds;
         const minSide = Math.max(1, Math.min(width, height));
-        const edgeTolerance = Math.max(6, minSide * 0.09);
+        const edgeTolerance = Math.max(6, minSide * 0.10);
 
         let totalLength = 0;
         let axisAlignedLength = 0;
@@ -1495,14 +1752,151 @@
         };
       }
 
+      function rectangleCornerTurnEvidence(points, bounds) {
+        const { minX, minY, maxX, maxY, width, height } = bounds;
+        const samples = resamplePoints(points, 80);
+        const diag = Math.hypot(width, height) || 1;
+        const cornerTolerance = Math.max(8, Math.min(width, height) * 0.22);
+        const cornerTurns = [0, 0, 0, 0];
+        let totalTurn = 0;
+
+        if (samples.length < 5) {
+          return { cornerTurnRatio: 0, cornersWithTurn: 0, cornerTurnTotal: 0, totalTurn: 0 };
+        }
+
+        const loop = samples.slice();
+        const first = loop[0];
+        const last = loop[loop.length - 1];
+        if (Math.hypot(first[0] - last[0], first[1] - last[1]) <= diag * 0.08) {
+          loop.pop();
+        }
+
+        function nearestCornerIndex(point) {
+          const nearLeft = Math.abs(point[0] - minX) <= cornerTolerance;
+          const nearRight = Math.abs(point[0] - maxX) <= cornerTolerance;
+          const nearTop = Math.abs(point[1] - minY) <= cornerTolerance;
+          const nearBottom = Math.abs(point[1] - maxY) <= cornerTolerance;
+
+          if (nearLeft && nearTop) return 0;
+          if (nearRight && nearTop) return 1;
+          if (nearRight && nearBottom) return 2;
+          if (nearLeft && nearBottom) return 3;
+          return -1;
+        }
+
+        for (let i = 0; i < loop.length; i++) {
+          const prev = loop[(i - 1 + loop.length) % loop.length];
+          const curr = loop[i];
+          const next = loop[(i + 1) % loop.length];
+          const inLength = Math.hypot(curr[0] - prev[0], curr[1] - prev[1]);
+          const outLength = Math.hypot(next[0] - curr[0], next[1] - curr[1]);
+
+          if (inLength < 2 || outLength < 2) continue;
+
+          const a1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+          const a2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+          const turn = angleDelta(a2, a1);
+          const cornerIndex = nearestCornerIndex(curr);
+
+          totalTurn += turn;
+          if (cornerIndex >= 0) {
+            cornerTurns[cornerIndex] += turn;
+          }
+        }
+
+        const cornerTurnTotal = cornerTurns.reduce((sum, turn) => sum + turn, 0);
+        const cornersWithTurn = cornerTurns.filter((turn) => turn >= 0.42).length;
+
+        return {
+          cornerTurnRatio: totalTurn ? cornerTurnTotal / totalTurn : 0,
+          cornersWithTurn,
+          cornerTurnTotal,
+          totalTurn
+        };
+      }
+
+      function hasStrongRectangleStructure(points, bounds) {
+        const corners = rectangleCornerTurnEvidence(points, bounds);
+        const straightEvidence = rectangleStraightEdgeEvidence(points, bounds);
+
+        return (
+          corners.cornersWithTurn >= 3 &&
+          corners.cornerTurnRatio >= 0.44 &&
+          corners.cornerTurnTotal >= 2.2 &&
+          straightEvidence.axisRatio >= 0.45 &&
+          straightEvidence.sidesWithStraightRuns >= 3
+        );
+      }
+
+      function rectangleClosureAdjustedPoints(points) {
+        if (!points || points.length < 4) return points || [];
+
+        const first = points[0];
+        const bounds = pointBounds(points);
+        const diag = Math.hypot(bounds.width, bounds.height) || 1;
+        const maxLookback = Math.max(3, Math.floor(points.length * 0.35));
+        const firstIndex = Math.max(1, points.length - maxLookback);
+
+        for (let i = points.length - 1; i >= firstIndex; i--) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const dx = curr[0] - prev[0];
+          const dy = curr[1] - prev[1];
+          const segmentLengthSquared = dx * dx + dy * dy;
+
+          if (segmentLengthSquared <= 1) continue;
+
+          const t = ((first[0] - prev[0]) * dx + (first[1] - prev[1]) * dy) / segmentLengthSquared;
+          if (t <= 0.04 || t >= 1.08) continue;
+
+          const closest = [
+            prev[0] + dx * t,
+            prev[1] + dy * t
+          ];
+          const closeToStart = Math.hypot(closest[0] - first[0], closest[1] - first[1]);
+
+          if (closeToStart <= Math.max(9, diag * 0.10)) {
+            return points.slice(0, i).concat([first]);
+          }
+        }
+
+        return points;
+      }
+
+      function rectangleClosureIsAcceptable(points, bounds) {
+        const closeRatio = closedness(points, bounds);
+        if (closeRatio <= 0.30) return true;
+        if (closeRatio > 0.46 || points.length < 3) return false;
+
+        const { minX, minY, maxX, maxY, width, height } = bounds;
+        const minSide = Math.max(1, Math.min(width, height));
+        const edgeTolerance = Math.max(8, minSide * 0.12);
+        const first = points[0];
+        const last = points[points.length - 1];
+        const prev = points[points.length - 2];
+        const dx = last[0] - prev[0];
+        const dy = last[1] - prev[1];
+        const angle = Math.abs(Math.atan2(dy, dx));
+        const horizontalish = angleDelta(angle, 0) < 0.28 || angleDelta(angle, Math.PI) < 0.28;
+        const verticalish = angleDelta(angle, Math.PI / 2) < 0.28;
+
+        const sameLeft = Math.abs(first[0] - minX) <= edgeTolerance && Math.abs(last[0] - minX) <= edgeTolerance;
+        const sameRight = Math.abs(first[0] - maxX) <= edgeTolerance && Math.abs(last[0] - maxX) <= edgeTolerance;
+        const sameTop = Math.abs(first[1] - minY) <= edgeTolerance && Math.abs(last[1] - minY) <= edgeTolerance;
+        const sameBottom = Math.abs(first[1] - maxY) <= edgeTolerance && Math.abs(last[1] - maxY) <= edgeTolerance;
+
+        return ((sameLeft || sameRight) && verticalish) || ((sameTop || sameBottom) && horizontalish);
+      }
+
       function recognizeRectangle(points, bounds) {
         const { minX, minY, maxX, maxY, width, height } = bounds;
         const minSide = Math.min(width, height);
         const diag = Math.hypot(width, height);
 
-        if (minSide < 22 || closedness(points, bounds) > 0.30) return null;
+        if (minSide < 22 || !rectangleClosureIsAcceptable(points, bounds)) return null;
 
-        const edgeTolerance = Math.max(5.5, minSide * 0.075);
+        const samples = resamplePoints(points, 80);
+        const edgeTolerance = Math.max(6, minSide * 0.09);
         let nearEdge = 0;
         let totalEdgeDistance = 0;
         let left = 0;
@@ -1511,7 +1905,7 @@
         let bottom = 0;
         let cornerHits = 0;
 
-        for (const point of points) {
+        for (const point of samples) {
           const [x, y] = point;
           const distances = {
             left: Math.abs(x - minX),
@@ -1534,24 +1928,33 @@
           if (nearHorizontalEdge && nearVerticalEdge) cornerHits++;
         }
 
-        const nearRatio = nearEdge / points.length;
-        const meanEdgeDistance = totalEdgeDistance / points.length;
-        const sideMinCount = Math.max(3, points.length * 0.11);
+        const nearRatio = nearEdge / samples.length;
+        const meanEdgeDistance = totalEdgeDistance / samples.length;
+        const perimeter = Math.max(1, width * 2 + height * 2);
+        const horizontalSideMinCount = Math.max(2, samples.length * (width / perimeter) * 0.35);
+        const verticalSideMinCount = Math.max(2, samples.length * (height / perimeter) * 0.35);
         const allSidesCovered =
-          left >= sideMinCount &&
-          right >= sideMinCount &&
-          top >= sideMinCount &&
-          bottom >= sideMinCount;
+          left >= verticalSideMinCount &&
+          right >= verticalSideMinCount &&
+          top >= horizontalSideMinCount &&
+          bottom >= horizontalSideMinCount;
 
         const straightEvidence = rectangleStraightEdgeEvidence(points, bounds);
-        const enoughCorners = cornerHits >= 3 && cornerEvidence(points) >= 3;
-        const compactEnough = meanEdgeDistance <= Math.max(4.8, minSide * 0.06);
+        const cornerTurns = rectangleCornerTurnEvidence(points, bounds);
+        const enoughCorners =
+          (
+            cornerTurns.cornersWithTurn >= 3 &&
+            cornerTurns.cornerTurnRatio >= 0.44 &&
+            cornerTurns.cornerTurnTotal >= 2.2
+          ) ||
+          (cornerHits >= 3 && cornerEvidence(points) >= 3);
+        const compactEnough = meanEdgeDistance <= Math.max(5.5, minSide * 0.075);
         const hasStraightEdges =
-          straightEvidence.axisRatio >= 0.48 &&
+          straightEvidence.axisRatio >= 0.45 &&
           straightEvidence.sidesWithStraightRuns >= 3;
 
         if (
-          nearRatio >= 0.74 &&
+          nearRatio >= 0.68 &&
           allSidesCovered &&
           enoughCorners &&
           compactEnough &&
@@ -1577,6 +1980,7 @@
         const minSide = Math.min(width, height);
 
         if (minSide < 18 || closedness(points, bounds) > 0.44) return null;
+        if (hasStrongRectangleStructure(points, bounds)) return null;
 
         const cx = (minX + maxX) / 2;
         const cy = (minY + maxY) / 2;
@@ -1665,28 +2069,19 @@
       }
 
       function chooseClosedShapeCandidate(points, bounds, rectangle, ellipse) {
-        const corners = cornerEvidence(points);
         const rectScore = rectangleFitScore(points, bounds);
         const ellScore = ellipseFitScore(points, bounds);
-        const straightEvidence = rectangleStraightEdgeEvidence(points, bounds);
-        const strongRectangleEvidence =
-          corners >= 3 &&
-          straightEvidence.axisRatio >= 0.50 &&
-          straightEvidence.sidesWithStraightRuns >= 3;
+        const strongRectangleEvidence = hasStrongRectangleStructure(points, bounds);
 
         if (rectangle && !ellipse) {
-          if (strongRectangleEvidence && rectScore < ellScore * 0.72) {
-            return rectangle;
-          }
-
-          return null;
+          return rectangle;
         }
 
         if (ellipse && !rectangle) return ellipse;
         if (!rectangle && !ellipse) return null;
 
         if (!strongRectangleEvidence) return ellipse;
-        if (rectScore < ellScore * 0.62) return rectangle;
+        if (rectScore < ellScore * 0.92) return rectangle;
 
         return ellipse;
       }
@@ -1700,9 +2095,11 @@
         const line = recognizeLine(simplified, bounds);
         if (line) return line;
 
-        const rectangle = recognizeRectangle(simplified, bounds);
+        const rectanglePoints = rectangleClosureAdjustedPoints(simplified);
+        const rectangleBounds = pointBounds(rectanglePoints);
+        const rectangle = recognizeRectangle(rectanglePoints, rectangleBounds);
         const ellipse = recognizeEllipse(simplified, bounds);
-        const closedShape = chooseClosedShapeCandidate(simplified, bounds, rectangle, ellipse);
+        const closedShape = chooseClosedShapeCandidate(rectanglePoints, rectangleBounds, rectangle, ellipse);
         if (closedShape) return closedShape;
 
         return null;
@@ -1802,13 +2199,16 @@
       }
 
       function shapeContainsPoint(shape, point, padding = 8) {
+        const localPoint = pointInShapeLocalSpace(shape, { x: point[0], y: point[1] });
+        const testPoint = [localPoint.x, localPoint.y];
+
         if (shape.type === "rectangle") {
           const box = normalizedBox(shape.geom);
           return (
-            point[0] >= box.x - padding &&
-            point[0] <= box.x + box.width + padding &&
-            point[1] >= box.y - padding &&
-            point[1] <= box.y + box.height + padding
+            testPoint[0] >= box.x - padding &&
+            testPoint[0] <= box.x + box.width + padding &&
+            testPoint[1] >= box.y - padding &&
+            testPoint[1] <= box.y + box.height + padding
           );
         }
 
@@ -1818,8 +2218,8 @@
           const ry = Math.max(1, box.height / 2 + padding);
           const cx = box.x + box.width / 2;
           const cy = box.y + box.height / 2;
-          const nx = (point[0] - cx) / rx;
-          const ny = (point[1] - cy) / ry;
+          const nx = (testPoint[0] - cx) / rx;
+          const ny = (testPoint[1] - cy) / ry;
           return nx * nx + ny * ny <= 1;
         }
 
@@ -2070,6 +2470,47 @@
         ctx.restore();
       }
 
+      function isOverBounds(point, bounds) {
+        return (
+          point.x >= bounds.x &&
+          point.x <= bounds.x + bounds.width &&
+          point.y >= bounds.y &&
+          point.y <= bounds.y + bounds.height
+        );
+      }
+
+      function drawTrashCan(context, rcInst, x, y, w, h, isHover) {
+        const stroke = isHover ? "#c0392b" : "rgba(55, 45, 38, 0.68)";
+        const fill = isHover ? "rgba(192, 57, 43, 0.14)" : "rgba(55, 45, 38, 0.05)";
+        const sw = Math.max(1.5, w * 0.026);
+        const opts = { roughness: 1.7, bowing: 0.9, stroke, strokeWidth: sw, seed: 77 };
+        const fillOpts = { ...opts, fill, fillStyle: "solid" };
+        const lineOpts = { roughness: 1.3, stroke, strokeWidth: sw * 0.72, seed: 78 };
+
+        context.save();
+        context.globalAlpha = isHover ? 0.2 : 0.07;
+        context.fillStyle = isHover ? "#c0392b" : "#3d3328";
+        context.beginPath();
+        context.arc(x + w / 2, y + h / 2 + h * 0.05, Math.max(w, h) * 0.76, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+
+        // Handle arch (two angled lines)
+        rcInst.line(x + w * 0.33, y + h * 0.14, x + w * 0.46, y + h * 0.02, opts);
+        rcInst.line(x + w * 0.54, y + h * 0.02, x + w * 0.67, y + h * 0.14, opts);
+
+        // Lid
+        rcInst.rectangle(x - w * 0.06, y + h * 0.12, w * 1.12, h * 0.11, fillOpts);
+
+        // Body
+        rcInst.rectangle(x + w * 0.03, y + h * 0.23, w * 0.94, h * 0.77, fillOpts);
+
+        // Vertical lines inside body
+        rcInst.line(x + w * 0.28, y + h * 0.34, x + w * 0.27, y + h * 0.93, lineOpts);
+        rcInst.line(x + w * 0.50, y + h * 0.34, x + w * 0.50, y + h * 0.93, lineOpts);
+        rcInst.line(x + w * 0.72, y + h * 0.34, x + w * 0.73, y + h * 0.93, lineOpts);
+      }
+
       function redraw(previewShape = null) {
         drawBackground();
 
@@ -2096,8 +2537,21 @@
           }
         }
 
+        if (pendingImagines.length) {
+          drawImagineSpinners(performance.now());
+        }
+
         ctx.restore();
         drawPlayers();
+
+        if (activeDrag && activeDrag.tool === "hand") {
+          const tw = 68, th = 78;
+          const tx = 24;
+          const ty = viewHeight - th - 88;
+          const screenCurrent = worldToScreen(activeDrag.current);
+          const isHover = isOverBounds(screenCurrent, { x: tx, y: ty, width: tw, height: th });
+          drawTrashCan(ctx, rc, tx, ty, tw, th, isHover);
+        }
       }
 
       // Strip the cached `drawable` (and any transient fields) before sending
@@ -2175,7 +2629,8 @@
           id: localPlayer.id,
           x: round1(localPlayer.x),
           y: round1(localPlayer.y),
-          moving: localPlayer.moving
+          moving: localPlayer.moving,
+          facing: localPlayer.facing
         };
 
         if (includeAvatar) {
@@ -2220,6 +2675,7 @@
           x: clampNumber(playerData.x, viewWidth / 2),
           y: clampNumber(playerData.y, viewHeight / 2),
           moving: Boolean(playerData.moving),
+          facing: playerData.facing === -1 ? -1 : 1,
           avatar
         });
         redraw();
@@ -2232,6 +2688,9 @@
         existing.x = clampNumber(move.x, existing.x);
         existing.y = clampNumber(move.y, existing.y);
         existing.moving = Boolean(move.moving);
+        if (move.facing === -1 || move.facing === 1) {
+          existing.facing = move.facing;
+        }
         redraw();
       }
 
@@ -2252,11 +2711,20 @@
         redraw();
       }
 
-      function recordHistory() {
+      function recordHistory(clearRedo = true) {
         historyStack.push(snapshotShapes());
         if (historyStack.length > 100) {
           historyStack.shift();
         }
+        if (clearRedo) {
+          redoStack.length = 0;
+        }
+        updateHistoryButtons();
+      }
+
+      function updateHistoryButtons() {
+        controls.undoBtn.disabled = !historyStack.length && !shapes.length;
+        controls.redoBtn.disabled = !redoStack.length;
       }
 
       function load() {
@@ -2384,7 +2852,8 @@
               id: localPlayer.id,
               x: round1(localPlayer.x),
               y: round1(localPlayer.y),
-              moving: localPlayer.moving
+              moving: localPlayer.moving,
+              facing: localPlayer.facing
             });
           },
           send(msg) {
@@ -2447,6 +2916,11 @@
         localPlayer.moving = vector.moving;
 
         if (vector.moving) {
+          if (vector.dx < 0) {
+            localPlayer.facing = -1;
+          } else if (vector.dx > 0) {
+            localPlayer.facing = 1;
+          }
           localPlayer.x = round1(localPlayer.x + vector.dx * PLAYER_SPEED * dt);
           localPlayer.y = round1(localPlayer.y + vector.dy * PLAYER_SPEED * dt);
           hideMovementHint();
@@ -2557,13 +3031,50 @@
         });
       }
 
+      function measurePathBounds(d, ox = 0, oy = 0) {
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("width", "0");
+        svg.setAttribute("height", "0");
+        svg.style.position = "absolute";
+        svg.style.visibility = "hidden";
+        const path = document.createElementNS(ns, "path");
+        path.setAttribute("d", d);
+        svg.appendChild(path);
+        document.body.appendChild(svg);
+        const box = path.getBBox();
+        document.body.removeChild(svg);
+        return {
+          x: round1(box.x + ox),
+          y: round1(box.y + oy),
+          width: Math.max(0, round1(box.width)),
+          height: Math.max(0, round1(box.height))
+        };
+      }
+
       function translateGeom(geom, dx, dy) {
+        if (Array.isArray(geom.children)) {
+          return {
+            ...geom,
+            ox: round1((geom.ox || 0) + dx),
+            oy: round1((geom.oy || 0) + dy)
+          };
+        }
+
         if (geom.points) {
           return {
             points: geom.points.map((point) => [
               round1(point[0] + dx),
               round1(point[1] + dy)
             ])
+          };
+        }
+
+        if (typeof geom.d === "string") {
+          return {
+            ...geom,
+            ox: round1((geom.ox || 0) + dx),
+            oy: round1((geom.oy || 0) + dy)
           };
         }
 
@@ -2583,9 +3094,101 @@
         };
       }
 
-      function shapeBounds(shape) {
+      function scaleGeom(shape, geom, center, factor) {
+        // Scale the whole group about the pivot: T'(p) = factor*(T(p) - center) + center,
+        // where T(p) = scale*p + (ox, oy). So scale and offset compose cleanly.
+        if (Array.isArray(geom.children)) {
+          const nextScale = groupScale(geom) * factor;
+          return {
+            ...geom,
+            scale: Math.round(nextScale * 1e4) / 1e4,
+            ox: round1((geom.ox || 0) * factor + center.x * (1 - factor)),
+            oy: round1((geom.oy || 0) * factor + center.y * (1 - factor))
+          };
+        }
+
+        if (geom.points) {
+          return {
+            ...geom,
+            points: geom.points.map((point) => {
+              const scaled = scalePointObject({ x: point[0], y: point[1] }, center, factor);
+              return [round1(scaled.x), round1(scaled.y)];
+            })
+          };
+        }
+
+        if (Object.prototype.hasOwnProperty.call(geom, "text")) {
+          const scaledAnchor = scalePointObject({ x: geom.x, y: geom.y }, center, factor);
+          return {
+            ...geom,
+            x: round1(scaledAnchor.x),
+            y: round1(scaledAnchor.y),
+            fontSize: Math.max(4, round1((geom.fontSize || 28) * factor))
+          };
+        }
+
+        const p1 = scalePointObject({ x: geom.x1, y: geom.y1 }, center, factor);
+        const p2 = scalePointObject({ x: geom.x2, y: geom.y2 }, center, factor);
+        return {
+          ...geom,
+          x1: round1(p1.x),
+          y1: round1(p1.y),
+          x2: round1(p2.x),
+          y2: round1(p2.y)
+        };
+      }
+
+      function rotateGeom(shape, geom, center, angle) {
+        if (geom.points) {
+          return {
+            ...geom,
+            points: geom.points.map((point) => {
+              const rotated = rotatePointObject({ x: point[0], y: point[1] }, center, angle);
+              return [round1(rotated.x), round1(rotated.y)];
+            })
+          };
+        }
+
+        if (canStoreRotation(shape)) {
+          const source = { ...shape, geom };
+          const beforeCenter = boxCenter(shapeBaseBounds(source));
+          const afterCenter = rotatePointObject(beforeCenter, center, angle);
+          return {
+            ...translateGeom(geom, afterCenter.x - beforeCenter.x, afterCenter.y - beforeCenter.y),
+            rotation: normalizeRotation(shapeRotation(source) + angle)
+          };
+        }
+
+        const p1 = rotatePointObject({ x: geom.x1, y: geom.y1 }, center, angle);
+        const p2 = rotatePointObject({ x: geom.x2, y: geom.y2 }, center, angle);
+        return {
+          ...geom,
+          x1: round1(p1.x),
+          y1: round1(p1.y),
+          x2: round1(p2.x),
+          y2: round1(p2.y)
+        };
+      }
+
+      function applyTransformFromOriginal(shape, originalGeom, transform) {
+        if (transform.type === "scale") {
+          shape.geom = scaleGeom(shape, originalGeom, transform.center, transform.factor);
+        } else {
+          shape.geom = rotateGeom(shape, originalGeom, transform.center, transform.angle);
+        }
+      }
+
+      function shapeBaseBounds(shape) {
+        if (shape.type === "group") {
+          return groupBounds(shape);
+        }
+
         if (shape.type === "text") {
           return textBounds(shape);
+        }
+
+        if (shape.type === "path" && shape.geom && typeof shape.geom.d === "string") {
+          return measurePathBounds(shape.geom.d, shape.geom.ox, shape.geom.oy);
         }
 
         if (shape.geom.points) {
@@ -2599,6 +3202,11 @@
         }
 
         return normalizedBox(shape.geom);
+      }
+
+      function shapeBounds(shape) {
+        const box = shapeBaseBounds(shape);
+        return canStoreRotation(shape) ? rotatedBoxBounds(box, shapeRotation(shape)) : box;
       }
 
       function expandedBoxContains(box, point, padding = 8) {
@@ -2638,22 +3246,27 @@
 
       function pointInShapeForDragging(shape, point) {
         const padding = Math.max(8, (shape.options.strokeWidth || 2) * 3);
+        const localPoint = pointInShapeLocalSpace(shape, point);
+
+        if (shape.type === "group") {
+          return expandedBoxContains(groupBounds(shape), localPoint, padding);
+        }
 
         if (shape.type === "text") {
-          return expandedBoxContains(textBounds(shape), point, 6);
+          return expandedBoxContains(textBounds(shape), localPoint, 6);
         }
 
         if (shape.type === "rectangle") {
           const box = normalizedBox(shape.geom);
-          if (!expandedBoxContains(box, point, padding)) return false;
+          if (!expandedBoxContains(box, localPoint, padding)) return false;
 
           if (shape.options.fill) return true;
 
           const edgeDistance = Math.min(
-            Math.abs(point.x - box.x),
-            Math.abs(point.x - (box.x + box.width)),
-            Math.abs(point.y - box.y),
-            Math.abs(point.y - (box.y + box.height))
+            Math.abs(localPoint.x - box.x),
+            Math.abs(localPoint.x - (box.x + box.width)),
+            Math.abs(localPoint.y - box.y),
+            Math.abs(localPoint.y - (box.y + box.height))
           );
 
           return edgeDistance <= padding;
@@ -2665,14 +3278,18 @@
           const ry = Math.max(1, box.height / 2);
           const cx = box.x + rx;
           const cy = box.y + ry;
-          const nx = (point.x - cx) / rx;
-          const ny = (point.y - cy) / ry;
+          const nx = (localPoint.x - cx) / rx;
+          const ny = (localPoint.y - cy) / ry;
           const radius = Math.sqrt(nx * nx + ny * ny);
 
           if (shape.options.fill && radius <= 1.08) return true;
 
           const tolerance = padding / Math.max(1, Math.min(rx, ry));
           return Math.abs(radius - 1) <= tolerance;
+        }
+
+        if (shape.type === "path") {
+          return expandedBoxContains(shapeBaseBounds(shape), localPoint, padding);
         }
 
         if (shape.type === "line") {
@@ -2791,6 +3408,71 @@
         }
       }
 
+      function isTransformTool(tool) {
+        return tool === "scale" || tool === "rotate";
+      }
+
+      function pointerDistance(point, center) {
+        return Math.hypot(point.x - center.x, point.y - center.y);
+      }
+
+      function pointerAngle(point, center) {
+        return Math.atan2(point.y - center.y, point.x - center.x);
+      }
+
+      function transformDragForSelection(tool, pointerId, point) {
+        let dragShapes = selectedShapes();
+
+        if (!dragShapes.length) {
+          const hit = hitTestShape(point);
+          if (!hit) return null;
+          selectedIds = [hit.shape.id];
+          dragShapes = [hit.shape];
+        }
+
+        const bounds = selectionBounds();
+        if (!bounds) return null;
+        const center = boxCenter(bounds);
+
+        return {
+          pointerId,
+          tool,
+          start: point,
+          current: point,
+          center,
+          startDistance: Math.max(8, pointerDistance(point, center)),
+          startAngle: pointerAngle(point, center),
+          dragShapes,
+          originalGeoms: dragShapes.map((shape) => ({
+            id: shape.id,
+            geom: clone(shape.geom)
+          })),
+          moved: false,
+          historyRecorded: false
+        };
+      }
+
+      function transformFromDrag(drag, point) {
+        if (drag.tool === "scale") {
+          return {
+            type: "scale",
+            center: drag.center,
+            factor: Math.max(0.05, pointerDistance(point, drag.center) / drag.startDistance)
+          };
+        }
+
+        return {
+          type: "rotate",
+          center: drag.center,
+          angle: normalizeRotation(pointerAngle(point, drag.center) - drag.startAngle)
+        };
+      }
+
+      function transformMoved(transform) {
+        if (transform.type === "scale") return Math.abs(transform.factor - 1) > 0.015;
+        return Math.abs(transform.angle) > 0.01;
+      }
+
       function previewShape() {
         if (!activeDrag) return null;
 
@@ -2829,6 +3511,11 @@
 
         const point = canvasPoint(event);
 
+        if (currentTool === "imagine") {
+          openImaginePrompt(point);
+          return;
+        }
+
         if (currentTool === "text") {
           openTextEditor(point);
           return;
@@ -2862,6 +3549,12 @@
           };
 
           document.body.classList.add("dragging-shape");
+          return;
+        }
+
+        if (isTransformTool(currentTool)) {
+          activeDrag = transformDragForSelection(currentTool, event.pointerId, point);
+          redraw();
           return;
         }
 
@@ -2919,6 +3612,29 @@
           return;
         }
 
+        if (isTransformTool(activeDrag.tool)) {
+          const point = canvasPoint(event);
+          const transform = transformFromDrag(activeDrag, point);
+
+          if (!activeDrag.historyRecorded && transformMoved(transform)) {
+            recordHistory();
+            activeDrag.historyRecorded = true;
+          }
+
+          activeDrag.current = point;
+          activeDrag.moved = transformMoved(transform);
+
+          const originalById = new Map(activeDrag.originalGeoms.map((item) => [item.id, item.geom]));
+          for (const shape of activeDrag.dragShapes) {
+            const originalGeom = originalById.get(shape.id);
+            applyTransformFromOriginal(shape, originalGeom, transform);
+            shape.drawable = buildDrawable(shape);
+          }
+
+          redraw();
+          return;
+        }
+
         if (activeDrag.tool === "select") {
           activeDrag.current = canvasPoint(event);
           redraw(previewShape());
@@ -2953,8 +3669,34 @@
         if (activeDrag.tool === "hand") {
           const moved = activeDrag.moved;
           const dragShapes = activeDrag.dragShapes;
+          const tw = 68, th = 78;
+          const trashBounds = { x: 24, y: viewHeight - th - 88, width: tw, height: th };
+          const screenCurrent = worldToScreen(activeDrag.current);
+          const droppedOnTrash = moved && isOverBounds(screenCurrent, trashBounds);
           activeDrag = null;
           document.body.classList.remove("dragging-shape");
+          if (droppedOnTrash) {
+            for (const shape of dragShapes) {
+              const idx = shapes.indexOf(shape);
+              if (idx >= 0) shapes.splice(idx, 1);
+              net.send({ type: "remove", id: shape.id });
+            }
+            selectedIds = selectedIds.filter((id) => !dragShapes.some((s) => s.id === id));
+            save();
+          } else if (moved) {
+            save();
+            for (const shape of dragShapes) {
+              net.send({ type: "update", shape: serializeShape(shape) });
+            }
+          }
+          redraw();
+          return;
+        }
+
+        if (isTransformTool(activeDrag.tool)) {
+          const moved = activeDrag.moved;
+          const dragShapes = activeDrag.dragShapes;
+          activeDrag = null;
           if (moved) {
             save();
             for (const shape of dragShapes) {
@@ -3008,16 +3750,30 @@
       function undo() {
         if (!historyStack.length) {
           if (!shapes.length) return;
+          redoStack.push(snapshotShapes());
           shapes.pop();
           save();
           net.send({ type: "replace", shapes: shapes.map(serializeShape) });
           redraw();
+          updateHistoryButtons();
           return;
         }
 
+        redoStack.push(snapshotShapes());
         const snapshot = historyStack.pop();
         restoreSnapshot(snapshot);
         net.send({ type: "replace", shapes: shapes.map(serializeShape) });
+        updateHistoryButtons();
+      }
+
+      function redo() {
+        if (!redoStack.length) return;
+
+        recordHistory(false);
+        const snapshot = redoStack.pop();
+        restoreSnapshot(snapshot);
+        net.send({ type: "replace", shapes: shapes.map(serializeShape) });
+        updateHistoryButtons();
       }
 
       function clearAll() {
@@ -3027,6 +3783,258 @@
         save();
         net.send({ type: "clear" });
         redraw();
+      }
+
+      // --- "Imagine": prompt -> Minimax SVG -> converter -> shapes -----------
+
+      // Boundary to public/svgtorough.js. Must return an array of shapes shaped
+      // like { type, geom, options? } (id/options are filled in if omitted).
+      function svgToShapes(svg) {
+        if (typeof window.svgToShapes === "function") {
+          return window.svgToShapes(svg);
+        }
+        throw new Error("SVG converter failed to load");
+      }
+
+      // Combined bounding box of a list of shapes in world coords (or null).
+      function shapesBoundingBox(list) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const shape of list) {
+          const b = shapeBounds(shape);
+          minX = Math.min(minX, b.x);
+          minY = Math.min(minY, b.y);
+          maxX = Math.max(maxX, b.x + b.width);
+          maxY = Math.max(maxY, b.y + b.height);
+        }
+        return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+      }
+
+      // Translate a batch so its combined bounding box centers on `target` (world).
+      // Reuses translateGeom so every geom form (incl. path ox/oy) shifts correctly.
+      function centerShapesAt(list, target) {
+        const box = shapesBoundingBox(list);
+        if (!box) return;
+        const dx = target.x - (box.minX + box.maxX) / 2;
+        const dy = target.y - (box.minY + box.maxY) / 2;
+        for (const shape of list) shape.geom = translateGeom(shape.geom, dx, dy);
+      }
+
+      function viewCenter() {
+        const cam = cameraOffset();
+        return { x: cam.x + viewWidth / 2, y: cam.y + viewHeight / 2 };
+      }
+
+      // Bundle the converter's shapes into a single "group" so the whole imagined
+      // drawing behaves as one object (select/move/delete/undo as a unit), then
+      // center it in view, insert it, and sync to peers — all as one undo step.
+      function addImaginedShapes(incoming, target) {
+        const children = (incoming || [])
+          .filter((s) => s && s.geom && typeof s.type === "string")
+          .map((s) => ({
+            type: s.type,
+            geom: s.geom,
+            options: s.options || currentOptions(newSeed())
+          }))
+          .slice(0, 500);
+        if (!children.length) return 0;
+
+        const group = {
+          id: newId(),
+          type: "group",
+          geom: { ox: 0, oy: 0, scale: 1, children },
+          options: currentOptions(newSeed()),
+          drawable: null
+        };
+
+        centerShapesAt([group], target || viewCenter());
+
+        recordHistory();
+        group.drawable = buildDrawable(group);
+        shapes.push(group);
+        net.send({ type: "add", shape: serializeShape(group) });
+        save();
+        redraw();
+        return children.length;
+      }
+
+      // --- Inline prompt (opens where the user clicked in "Imagine" mode) -------
+
+      let imaginePromptEl = null;
+
+      function closeImaginePrompt() {
+        if (imaginePromptEl) {
+          imaginePromptEl.remove();
+          imaginePromptEl = null;
+        }
+      }
+
+      function openImaginePrompt(point) {
+        closeImaginePrompt();
+
+        const wrap = document.createElement("div");
+        wrap.className = "imagine-prompt";
+        const screen = worldToScreen(point);
+        const left = Math.max(12, Math.min(screen.x, viewWidth - 360));
+        const top = Math.max(12, Math.min(screen.y, viewHeight - 60));
+        wrap.style.left = `${Math.round(left)}px`;
+        wrap.style.top = `${Math.round(top)}px`;
+        wrap.style.bottom = "auto";
+        wrap.style.transform = "none";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "Describe something to draw…";
+        input.maxLength = 500;
+        wrap.append(input);
+        document.body.appendChild(wrap);
+        imaginePromptEl = wrap;
+
+        const submit = () => {
+          const prompt = input.value.trim();
+          if (!prompt) return;
+          closeImaginePrompt();
+          startImagine(prompt, point);
+        };
+
+        input.addEventListener("keydown", (event) => {
+          event.stopPropagation();
+          if (event.key === "Enter") {
+            event.preventDefault();
+            submit();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeImaginePrompt();
+          }
+        });
+        input.addEventListener("blur", () => {
+          if (!input.value.trim()) closeImaginePrompt();
+        });
+
+        requestAnimationFrame(() => input.focus());
+      }
+
+      // --- Async generation: spinning placeholder anchored in world space -------
+      // Generation runs in the background, so the user can keep drawing/moving
+      // while one or more imaginings are in flight.
+
+      const pendingImagines = [];
+      let imagineFrameId = null;
+
+      function imagineTick() {
+        imagineFrameId = null;
+        if (!pendingImagines.length) return;
+        redraw(previewShape());
+        imagineFrameId = requestAnimationFrame(imagineTick);
+      }
+
+      function ensureImagineLoop() {
+        if (imagineFrameId === null && pendingImagines.length) {
+          imagineFrameId = requestAnimationFrame(imagineTick);
+        }
+      }
+
+      function stopImagineLoopIfIdle() {
+        if (!pendingImagines.length && imagineFrameId !== null) {
+          cancelAnimationFrame(imagineFrameId);
+          imagineFrameId = null;
+        }
+      }
+
+      function removePending(id) {
+        const idx = pendingImagines.findIndex((p) => p.id === id);
+        if (idx === -1) return false;
+        pendingImagines.splice(idx, 1);
+        return true;
+      }
+
+      // A hand-drawn rough.js arc that spins in place while generating.
+      function drawImagineSpinners(now) {
+        const r = 26;
+        const angle = (now / 600) % (Math.PI * 2);
+        for (const pending of pendingImagines) {
+          ctx.save();
+          ctx.translate(pending.x, pending.y);
+          ctx.rotate(angle);
+          rc.arc(0, 0, r * 2, r * 2, -Math.PI / 2, Math.PI, false, {
+            stroke: "#7a5cff",
+            strokeWidth: 3,
+            roughness: 1.8,
+            bowing: 2,
+            seed: pending.seed
+          });
+          ctx.restore();
+        }
+      }
+
+      function flashImagineError(point, message) {
+        const screen = worldToScreen(point);
+        const toast = document.createElement("div");
+        toast.className = "imagine-toast";
+        toast.textContent = message;
+        toast.style.left = `${Math.round(Math.max(12, Math.min(screen.x, viewWidth - 200)))}px`;
+        toast.style.top = `${Math.round(Math.max(12, Math.min(screen.y, viewHeight - 40)))}px`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2600);
+      }
+
+      function startImagine(prompt, point) {
+        const pending = {
+          id: newId(),
+          x: point.x,
+          y: point.y,
+          seed: newSeed()
+        };
+        pendingImagines.push(pending);
+        ensureImagineLoop();
+        redraw();
+
+        fetchImagineSvg(prompt)
+          .then((svg) => {
+            if (!removePending(pending.id)) return; // already cancelled
+            const count = addImaginedShapes(svgToShapes(svg), { x: pending.x, y: pending.y });
+            if (!count) flashImagineError(pending, "Nothing to draw from that");
+          })
+          .catch((err) => {
+            if (!removePending(pending.id)) return;
+            flashImagineError(pending, (err && err.message) || "Imagine failed");
+          })
+          .finally(() => {
+            stopImagineLoopIfIdle();
+            redraw();
+          });
+      }
+
+      async function fetchImagineSvg(prompt) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 50000);
+
+        let res;
+        try {
+          res = await fetch("/imagine", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+            signal: controller.signal
+          });
+        } catch (err) {
+          throw new Error(err && err.name === "AbortError" ? "Timed out" : "Network error");
+        } finally {
+          clearTimeout(timeout);
+        }
+
+        if (!res.ok) {
+          let msg = "Request failed";
+          try {
+            const body = await res.json();
+            if (body && body.error) msg = body.error;
+          } catch {}
+          throw new Error(msg);
+        }
+
+        const { svg } = await res.json();
+        if (!svg) throw new Error("No SVG returned");
+        return svg;
       }
 
       function downloadBlob(blob, filename) {
@@ -3070,8 +4078,32 @@
         return text;
       }
 
+      function applySvgRotation(node, shape) {
+        const rotation = shapeRotation(shape);
+        if (!node || !rotation || !canStoreRotation(shape)) return node;
+        const center = boxCenter(shapeBaseBounds(shape));
+        node.setAttribute(
+          "transform",
+          `rotate(${(rotation * 180) / Math.PI} ${center.x} ${center.y})`
+        );
+        return node;
+      }
+
       function makeSvgNode(rsvg, shape) {
-        return shape.type === "text" ? makeSvgTextNode(shape) : buildRoughShape(rsvg, shape);
+        const ns = "http://www.w3.org/2000/svg";
+        let node = shape.type === "text" ? makeSvgTextNode(shape) : buildRoughShape(rsvg, shape);
+
+        if (node && shape.type === "path" && (shape.geom.ox || shape.geom.oy)) {
+          const group = document.createElementNS(ns, "g");
+          group.setAttribute(
+            "transform",
+            `translate(${shape.geom.ox || 0} ${shape.geom.oy || 0})`
+          );
+          group.appendChild(node);
+          node = group;
+        }
+
+        return applySvgRotation(node, shape);
       }
 
       function exportSVG() {
@@ -3119,6 +4151,8 @@
         let editorRc = rough.canvas(editorCanvas);
         const editorGen = rough.generator();
         const editorShapes = [];
+        const editorUndoStack = [];
+        const editorRedoStack = [];
         let editorTool = "smart";
         let editorActiveDrag = null;
         let editorSelectedIds = [];
@@ -3133,6 +4167,8 @@
           bowingValue: document.getElementById("avatarBowingValue"),
           strokeWidth: document.getElementById("avatarStrokeWidth"),
           strokeWidthValue: document.getElementById("avatarStrokeWidthValue"),
+          undoBtn: document.getElementById("avatarUndoBtn"),
+          redoBtn: document.getElementById("avatarRedoBtn"),
           playBtn: document.getElementById("avatarPlayBtn"),
           clearBtn: document.getElementById("avatarClearBtn"),
           cancelBtn: document.getElementById("avatarCancelBtn"),
@@ -3153,6 +4189,49 @@
 
         function buildEditorDrawable(shape) {
           return shape.type === "text" ? null : buildRoughShape(editorGen, shape);
+        }
+
+        function snapshotEditor() {
+          return editorShapes.map(cloneShapeData);
+        }
+
+        function updateEditorHistoryButtons() {
+          editorControls.undoBtn.disabled = !editorUndoStack.length;
+          editorControls.redoBtn.disabled = !editorRedoStack.length;
+        }
+
+        // Record the state prior to a mutation. Pass an explicit snapshot when the
+        // shapes have already been mutated (e.g. a drag captured at pointer down).
+        function recordEditorHistory(snapshot = snapshotEditor()) {
+          editorUndoStack.push(snapshot);
+          if (editorUndoStack.length > 100) editorUndoStack.shift();
+          editorRedoStack.length = 0;
+          updateEditorHistoryButtons();
+        }
+
+        function restoreEditorSnapshot(snapshot) {
+          editorShapes.length = 0;
+          editorShapes.push(...hydrateShapeList(snapshot));
+          const ids = new Set(editorShapes.map((shape) => shape.id));
+          editorSelectedIds = editorSelectedIds.filter((id) => ids.has(id));
+        }
+
+        function undoEditor() {
+          if (!editorUndoStack.length) return;
+          stopPreview();
+          editorRedoStack.push(snapshotEditor());
+          restoreEditorSnapshot(editorUndoStack.pop());
+          updateEditorHistoryButtons();
+          drawEditor();
+        }
+
+        function redoEditor() {
+          if (!editorRedoStack.length) return;
+          stopPreview();
+          editorUndoStack.push(snapshotEditor());
+          restoreEditorSnapshot(editorRedoStack.pop());
+          updateEditorHistoryButtons();
+          drawEditor();
         }
 
         function editorOrderedShapes() {
@@ -3237,18 +4316,7 @@
         }
 
         function drawEditorShape(shape) {
-          if (shape.type === "text") {
-            drawEditorText(shape);
-            return;
-          }
-
-          if (!shape.drawable) {
-            shape.drawable = buildEditorDrawable(shape);
-          }
-
-          if (shape.drawable) {
-            editorRc.draw(shape.drawable);
-          }
+          drawShapeOn(editorCtx, editorRc, buildEditorDrawable, shape);
         }
 
         function drawEditorBackground() {
@@ -3295,6 +4363,14 @@
               const drawable = buildEditorDrawable(previewShape);
               if (drawable) editorRc.draw(drawable);
             }
+          }
+
+          if (editorActiveDrag && editorActiveDrag.tool === "hand") {
+            const etw = 40, eth = 46;
+            const etx = AVATAR_FRAME.width / 2 - etw / 2;
+            const ety = AVATAR_FRAME.height - eth - 10;
+            const isHover = isOverBounds(editorActiveDrag.current, { x: etx, y: ety, width: etw, height: eth });
+            drawTrashCan(editorCtx, editorRc, etx, ety, etw, eth, isHover);
           }
 
           updateOkayState();
@@ -3399,6 +4475,35 @@
           }
         }
 
+        function editorTransformDragForSelection(tool, pointerId, point) {
+          let dragShapes = editorSelectedShapes();
+
+          if (!dragShapes.length) {
+            const hit = editorHitTest(point);
+            if (!hit) return null;
+            editorSelectedIds = [hit.shape.id];
+            dragShapes = [hit.shape];
+          }
+
+          const bounds = editorSelectionBounds();
+          if (!bounds) return null;
+          const center = boxCenter(bounds);
+
+          return {
+            pointerId,
+            tool,
+            start: point,
+            current: point,
+            center,
+            startDistance: Math.max(8, pointerDistance(point, center)),
+            startAngle: pointerAngle(point, center),
+            dragShapes,
+            originalGeoms: dragShapes.map((shape) => ({ id: shape.id, geom: clone(shape.geom) })),
+            moved: false,
+            preSnapshot: snapshotEditor()
+          };
+        }
+
         function tryApplyEditorFill(strokeShape) {
           const points = simplifyPoints(strokeShape.geom.points, 3.5);
           if (!points || points.length < 10) return false;
@@ -3423,6 +4528,7 @@
           const fillStyle = chooseSmartFillStyle(target, points);
           if (!fillStyle) return false;
 
+          recordEditorHistory();
           target.options.fill = editorControls.strokeColor.value;
           target.options.fillStyle = fillStyle;
           target.drawable = buildEditorDrawable(target);
@@ -3461,6 +4567,7 @@
               options: editorOptions(newSeed()),
               drawable: null
             };
+            recordEditorHistory();
             editorShapes.push(shape);
             drawEditor();
           };
@@ -3517,8 +4624,15 @@
               current: point,
               dragShapes,
               originalGeoms: dragShapes.map((shape) => ({ id: shape.id, geom: clone(shape.geom) })),
-              moved: false
+              moved: false,
+              preSnapshot: snapshotEditor()
             };
+            return;
+          }
+
+          if (isTransformTool(editorTool)) {
+            editorActiveDrag = editorTransformDragForSelection(editorTool, event.pointerId, point);
+            drawEditor();
             return;
           }
 
@@ -3565,6 +4679,22 @@
             return;
           }
 
+          if (isTransformTool(editorActiveDrag.tool)) {
+            const point = editorPoint(event);
+            const transform = transformFromDrag(editorActiveDrag, point);
+            editorActiveDrag.current = point;
+            editorActiveDrag.moved = transformMoved(transform);
+
+            const originalById = new Map(editorActiveDrag.originalGeoms.map((item) => [item.id, item.geom]));
+            for (const shape of editorActiveDrag.dragShapes) {
+              const originalGeom = originalById.get(shape.id);
+              applyTransformFromOriginal(shape, originalGeom, transform);
+              shape.drawable = buildEditorDrawable(shape);
+            }
+            drawEditor();
+            return;
+          }
+
           if (editorActiveDrag.tool === "select") {
             editorActiveDrag.current = editorPoint(event);
             drawEditor(editorPreviewShape());
@@ -3593,7 +4723,34 @@
           }
 
           if (editorActiveDrag.tool === "hand") {
+            const dragShapes = editorActiveDrag.dragShapes;
+            const moved = editorActiveDrag.moved;
+            const preSnapshot = editorActiveDrag.preSnapshot;
+            const etw = 40, eth = 46;
+            const trashBounds = { x: AVATAR_FRAME.width / 2 - etw / 2, y: AVATAR_FRAME.height - eth - 10, width: etw, height: eth };
+            const droppedOnTrash = moved && isOverBounds(editorActiveDrag.current, trashBounds);
             editorActiveDrag = null;
+            if (moved || droppedOnTrash) {
+              recordEditorHistory(preSnapshot);
+            }
+            if (droppedOnTrash) {
+              for (const shape of dragShapes) {
+                const idx = editorShapes.indexOf(shape);
+                if (idx >= 0) editorShapes.splice(idx, 1);
+              }
+              editorSelectedIds = editorSelectedIds.filter((id) => !dragShapes.some((s) => s.id === id));
+            }
+            drawEditor();
+            return;
+          }
+
+          if (isTransformTool(editorActiveDrag.tool)) {
+            const moved = editorActiveDrag.moved;
+            const preSnapshot = editorActiveDrag.preSnapshot;
+            editorActiveDrag = null;
+            if (moved) {
+              recordEditorHistory(preSnapshot);
+            }
             drawEditor();
             return;
           }
@@ -3619,6 +4776,7 @@
           }
 
           if (isMeaningful(shape)) {
+            recordEditorHistory();
             editorShapes.push(shape);
           }
           drawEditor();
@@ -3673,6 +4831,7 @@
 
         function clearDraft() {
           stopPreview();
+          if (editorShapes.length) recordEditorHistory();
           editorShapes.length = 0;
           editorSelectedIds = [];
           drawEditor();
@@ -3700,8 +4859,13 @@
           editorShapes.push(...hydrateAvatarShapeList(localPlayer.avatar.map(serializeShape)));
           editorSelectedIds = [];
           editorActiveDrag = null;
+          editorUndoStack.length = 0;
+          editorRedoStack.length = 0;
           overlay.hidden = false;
           updateControlLabels();
+          updateEditorHistoryButtons();
+          editorCanvas.classList.toggle("scale-mode", editorTool === "scale");
+          editorCanvas.classList.toggle("rotate-mode", editorTool === "rotate");
           requestAnimationFrame(resizeEditorCanvas);
         }
 
@@ -3711,6 +4875,8 @@
             if (editorTool === "smart") {
               editorSelectedIds = [];
             }
+            editorCanvas.classList.toggle("scale-mode", editorTool === "scale");
+            editorCanvas.classList.toggle("rotate-mode", editorTool === "rotate");
             document.querySelectorAll(".avatar-tool").forEach((item) => {
               item.classList.toggle("active", item === button);
             });
@@ -3727,6 +4893,8 @@
           input.addEventListener("change", updateControlLabels);
         });
 
+        editorControls.undoBtn.addEventListener("click", undoEditor);
+        editorControls.redoBtn.addEventListener("click", redoEditor);
         editorControls.playBtn.addEventListener("click", togglePreview);
         editorControls.clearBtn.addEventListener("click", clearDraft);
         editorControls.cancelBtn.addEventListener("click", close);
@@ -3743,9 +4911,12 @@
         });
 
         updateControlLabels();
+        updateEditorHistoryButtons();
         return {
           open,
           close,
+          undo: undoEditor,
+          redo: redoEditor,
           isOpen() {
             return !overlay.hidden;
           }
@@ -3767,6 +4938,8 @@
           document.body.classList.toggle("hand-mode", currentTool === "hand");
           document.body.classList.toggle("text-mode", currentTool === "text");
           document.body.classList.toggle("select-mode", currentTool === "select");
+          document.body.classList.toggle("scale-mode", currentTool === "scale");
+          document.body.classList.toggle("rotate-mode", currentTool === "rotate");
 
           document.querySelectorAll(".tool").forEach((b) => {
             b.classList.toggle("active", b === button);
@@ -3786,9 +4959,8 @@
       });
 
       controls.undoBtn.addEventListener("click", undo);
+      controls.redoBtn.addEventListener("click", redo);
       controls.clearBtn.addEventListener("click", clearAll);
-      controls.pngBtn.addEventListener("click", exportPNG);
-      controls.svgBtn.addEventListener("click", exportSVG);
       controls.avatarBtn.addEventListener("click", () => avatarEditor.open());
 
       document.addEventListener("keydown", (event) => {
@@ -3803,7 +4975,17 @@
 
         if ((event.metaKey || event.ctrlKey) && key === "z" && !event.shiftKey) {
           event.preventDefault();
-          undo();
+          if (avatarEditor.isOpen()) avatarEditor.undo();
+          else undo();
+        }
+
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          (key === "y" || (key === "z" && event.shiftKey))
+        ) {
+          event.preventDefault();
+          if (avatarEditor.isOpen()) avatarEditor.redo();
+          else redo();
         }
       });
       document.addEventListener("keyup", (event) => {
@@ -3834,6 +5016,7 @@
       load();
       loadPlayerState();
       updateMovementHint();
+      updateHistoryButtons();
       resize();
       net.connect();
     })();
