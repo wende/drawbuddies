@@ -864,61 +864,17 @@
         return null;
       }
 
-      function avatarAnimationTransform(part, moving) {
-        if (!moving || !part) return { x: 0, y: 0, rotate: 0, cx: 0, cy: 0 };
+      function avatarSwivelTransform(moving) {
+        if (!moving) return { bob: 0, swivel: 0 };
 
         if (!avatarAnimationStart) avatarAnimationStart = performance.now();
         const t = (performance.now() - avatarAnimationStart) / 1000;
-        const speed = 1.35;
-        const phaseBase = (t * speed) % 1;
-        const cycle = phaseBase * Math.PI * 2;
-        const guide = avatarGuide();
-        const crossover = Math.min(guide.leftLeg.width * 0.055, 6);
-        const lift = 10.5;
+        const phase = t * 1.65 * Math.PI * 2;
 
-        function smoothstep(v) {
-          const x = Math.max(0, Math.min(1, v));
-          return x * x * (3 - 2 * x);
-        }
-
-        function legVerticalPose(phase) {
-          if (phase < 0.25) return -lift * smoothstep(phase / 0.25);
-          if (phase < 0.5) return -lift;
-          if (phase < 0.75) return -lift * (1 - smoothstep((phase - 0.5) / 0.25));
-          return 0;
-        }
-
-        if (part === "body") {
-          return {
-            x: 0,
-            y: Math.sin(cycle) * 2.2,
-            rotate: Math.sin(cycle) * 0.0018,
-            cx: guide.body.x + guide.body.width / 2,
-            cy: guide.body.y + guide.body.height / 2
-          };
-        }
-
-        if (part === "leftLeg") {
-          return {
-            x: Math.sin(cycle) * crossover,
-            y: legVerticalPose(phaseBase),
-            rotate: 0,
-            cx: guide.leftLeg.x + guide.leftLeg.width / 2,
-            cy: guide.leftLeg.y + 8
-          };
-        }
-
-        if (part === "rightLeg") {
-          return {
-            x: -Math.sin(cycle) * crossover,
-            y: legVerticalPose((phaseBase + 0.5) % 1),
-            rotate: 0,
-            cx: guide.rightLeg.x + guide.rightLeg.width / 2,
-            cy: guide.rightLeg.y + 8
-          };
-        }
-
-        return { x: 0, y: 0, rotate: 0, cx: 0, cy: 0 };
+        return {
+          bob: -Math.abs(Math.sin(phase)) * 5,
+          swivel: Math.sin(phase) * 0.12 + Math.sin(phase * 2.7) * 0.012
+        };
       }
 
       function drawShapeWithCurrentTransform(shape) {
@@ -939,23 +895,16 @@
       function drawAvatarAt(player, screenX, screenY, moving) {
         const avatar = player.avatar && player.avatar.length ? player.avatar : hydrateAvatarShapeList(defaultAvatarData());
         const scale = AVATAR_DISPLAY_HEIGHT / AVATAR_FRAME.height;
-        const left = screenX - (AVATAR_FRAME.width * scale) / 2;
-        const top = screenY - (AVATAR_FRAME.height * scale) / 2;
+        const { bob, swivel } = avatarSwivelTransform(moving);
 
         ctx.save();
-        ctx.translate(left, top);
+        ctx.translate(screenX, screenY + bob);
+        ctx.rotate(swivel);
+        ctx.translate(-(AVATAR_FRAME.width * scale) / 2, -(AVATAR_FRAME.height * scale) / 2);
         ctx.scale(scale, scale);
 
         for (const shape of avatar.slice().sort((a, b) => shapeZRank(a) - shapeZRank(b))) {
-          const part = avatarPartForShape(shape);
-          const transform = avatarAnimationTransform(part, moving);
-
-          ctx.save();
-          ctx.translate(transform.cx, transform.cy);
-          ctx.rotate(transform.rotate);
-          ctx.translate(-transform.cx + transform.x, -transform.cy + transform.y);
           drawShapeWithCurrentTransform(shape);
-          ctx.restore();
         }
 
         ctx.restore();
@@ -2058,6 +2007,11 @@
         const h = viewHeight;
         const spacing = 28;
         const crossHalf = 3.2;
+        const camera = cameraOffset();
+
+        // Anchor the grid to world space so the paper scrolls with the camera.
+        const startX = ((-camera.x % spacing) + spacing) % spacing;
+        const startY = ((-camera.y % spacing) + spacing) % spacing;
 
         ctx.fillStyle = "#fbfdff";
         ctx.fillRect(0, 0, w, h);
@@ -2065,7 +2019,7 @@
         ctx.strokeStyle = "rgba(95, 145, 210, 0.10)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let y = spacing; y < h; y += spacing) {
+        for (let y = startY; y < h + spacing; y += spacing) {
           ctx.moveTo(0, y + 0.5);
           ctx.lineTo(w, y + 0.5);
         }
@@ -2074,8 +2028,8 @@
         ctx.strokeStyle = "rgba(95, 145, 210, 0.095)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let y = spacing; y < h; y += spacing) {
-          for (let x = spacing; x < w; x += spacing) {
+        for (let y = startY; y < h + spacing; y += spacing) {
+          for (let x = startX; x < w + spacing; x += spacing) {
             ctx.moveTo(x - crossHalf, y + 0.5);
             ctx.lineTo(x + crossHalf, y + 0.5);
             ctx.moveTo(x + 0.5, y - crossHalf);
@@ -2084,12 +2038,16 @@
         }
         ctx.stroke();
 
-        ctx.strokeStyle = "rgba(120, 155, 205, 0.08)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(44.5, 0);
-        ctx.lineTo(44.5, h);
-        ctx.stroke();
+        // Margin line anchored to world x=44 so it scrolls horizontally.
+        const marginScreenX = 44 - camera.x;
+        if (marginScreenX >= 0 && marginScreenX <= w) {
+          ctx.strokeStyle = "rgba(120, 155, 205, 0.08)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(marginScreenX + 0.5, 0);
+          ctx.lineTo(marginScreenX + 0.5, h);
+          ctx.stroke();
+        }
 
         ctx.globalAlpha = 0.032;
         ctx.fillStyle = "#4b5b6d";
@@ -3312,16 +3270,19 @@
           drawEditorBackground();
           drawPuppetGuide(editorCtx, avatarGuide());
 
+          const { bob, swivel } = avatarSwivelTransform(editorPlaying);
+          const cx = AVATAR_FRAME.width / 2;
+          const cy = AVATAR_FRAME.height / 2;
+          editorCtx.save();
+          editorCtx.translate(cx, cy + bob);
+          editorCtx.rotate(swivel);
+          editorCtx.translate(-cx, -cy);
+
           for (const shape of editorOrderedShapes()) {
-            const part = avatarPartForShape(shape);
-            const transform = avatarAnimationTransform(part, editorPlaying);
-            editorCtx.save();
-            editorCtx.translate(transform.cx, transform.cy);
-            editorCtx.rotate(transform.rotate);
-            editorCtx.translate(-transform.cx + transform.x, -transform.cy + transform.y);
             drawEditorShape(shape);
-            editorCtx.restore();
           }
+
+          editorCtx.restore();
 
           drawEditorSelection();
 
