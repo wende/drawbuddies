@@ -279,6 +279,7 @@
       max-height: calc(100vh - 24px);
       display: grid;
       grid-template-columns: minmax(260px, 360px) minmax(260px, 1fr);
+      align-items: stretch;
       gap: 12px;
       padding: 12px;
       overflow: auto;
@@ -341,6 +342,7 @@
       flex-direction: column;
       gap: 10px;
       min-width: 0;
+      min-height: 0;
     }
 
     .avatar-title {
@@ -348,26 +350,72 @@
       font-size: 16px;
       font-weight: 650;
       letter-spacing: 0;
+      flex-shrink: 0;
     }
 
     .avatar-controls {
+      flex: 1;
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+      min-width: 0;
+      width: 100%;
       padding-top: 2px;
     }
 
-    .avatar-controls .group {
-      min-height: 32px;
+    .avatar-tools-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      min-width: 0;
+      flex-shrink: 0;
+    }
+
+    .avatar-tools-row > .group {
+      display: contents;
+    }
+
+    .avatar-tools-row .group + .group {
+      border-left: none;
+      padding-left: 0;
+    }
+
+    .avatar-settings {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .avatar-settings .group {
+      min-height: 34px;
+    }
+
+    .avatar-settings label {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .avatar-settings input[type="range"] {
+      flex: 1;
+      max-width: none;
+      min-width: 72px;
     }
 
     .avatar-actions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
-      margin-top: auto;
+      flex-shrink: 0;
       padding-top: 8px;
+      width: 100%;
+      min-width: 0;
     }
 
     .primary {
@@ -516,8 +564,8 @@
     </div>
 
     <div class="group">
-      <label title="Stroke color">
-        Stroke
+      <label title="Color">
+        Color
         <input id="strokeColor" type="color" value="#222222" />
       </label>
     </div>
@@ -557,50 +605,57 @@
       <div class="avatar-panel">
         <h2 id="avatarTitle" class="avatar-title">Avatar</h2>
         <div class="avatar-controls" role="toolbar" aria-label="Avatar drawing controls">
-          <div class="group" aria-label="Avatar tools">
-            <button type="button" class="avatar-tool active" data-avatar-tool="smart">Draw</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="select">Select</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="hand">Move</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="scale">Scale</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="rotate">Rotate</button>
-            <button type="button" class="avatar-tool" data-avatar-tool="text">Text</button>
+          <div class="avatar-tools-row">
+            <div class="group" aria-label="Avatar tools">
+              <button type="button" class="avatar-tool active" data-avatar-tool="smart">Draw</button>
+              <button type="button" class="avatar-tool" data-avatar-tool="select">Select</button>
+              <button type="button" class="avatar-tool" data-avatar-tool="hand">Move</button>
+              <button type="button" class="avatar-tool" data-avatar-tool="scale">Scale</button>
+              <button type="button" class="avatar-tool" data-avatar-tool="rotate">Rotate</button>
+              <button type="button" class="avatar-tool" data-avatar-tool="text">Text</button>
+            </div>
+
+            <div class="group" aria-label="Avatar history">
+              <button id="avatarUndoBtn" type="button">Undo</button>
+              <button id="avatarRedoBtn" type="button">Redo</button>
+            </div>
           </div>
 
-          <div class="group">
-            <label title="Avatar stroke color">
-              Stroke
-              <input id="avatarStrokeColor" type="color" value="#222222" />
-            </label>
-          </div>
+          <div class="avatar-settings">
+            <div class="group">
+              <label title="Color">
+                Color
+                <input id="avatarStrokeColor" type="color" value="#222222" />
+              </label>
+            </div>
 
-          <div class="group">
-            <label>
-              Rough
-              <input id="avatarRoughness" type="range" min="0" max="4" step="0.1" value="1.5" />
-              <span id="avatarRoughnessValue" class="value">1.5</span>
-            </label>
-          </div>
+            <div class="group">
+              <label>
+                Rough
+                <input id="avatarRoughness" type="range" min="0" max="4" step="0.1" value="1.5" />
+                <span id="avatarRoughnessValue" class="value">1.5</span>
+              </label>
+            </div>
 
-          <div class="group">
-            <label>
-              Bow
-              <input id="avatarBowing" type="range" min="0" max="10" step="0.1" value="1.0" />
-              <span id="avatarBowingValue" class="value">1.0</span>
-            </label>
-          </div>
+            <div class="group">
+              <label>
+                Bow
+                <input id="avatarBowing" type="range" min="0" max="10" step="0.1" value="1.0" />
+                <span id="avatarBowingValue" class="value">1.0</span>
+              </label>
+            </div>
 
-          <div class="group">
-            <label>
-              Width
-              <input id="avatarStrokeWidth" type="range" min="1" max="14" step="0.5" value="2" />
-              <span id="avatarStrokeWidthValue" class="value">2.0</span>
-            </label>
+            <div class="group">
+              <label>
+                Width
+                <input id="avatarStrokeWidth" type="range" min="1" max="14" step="0.5" value="2" />
+                <span id="avatarStrokeWidthValue" class="value">2.0</span>
+              </label>
+            </div>
           </div>
         </div>
 
         <div class="avatar-actions">
-          <button id="avatarUndoBtn" type="button">Undo</button>
-          <button id="avatarRedoBtn" type="button">Redo</button>
           <button id="avatarPlayBtn" type="button">Play</button>
           <button id="avatarClearBtn" type="button">Clear</button>
           <button id="avatarCancelBtn" type="button">Cancel</button>
@@ -3801,6 +3856,10 @@
 
       // --- "Imagine": prompt -> Minimax SVG -> converter -> shapes -----------
 
+      // LLM SVGs use a 512×512 viewBox with no client-side dimension cap; scale
+      // down so imports don't dominate the canvas (users can scale up afterward).
+      const IMAGINE_DEFAULT_SCALE = 0.5;
+
       // Boundary to public/svgtorough.js. Must return an array of shapes shaped
       // like { type, geom, options? } (id/options are filled in if omitted).
       function svgToShapes(svg) {
@@ -3855,7 +3914,7 @@
         const group = {
           id: newId(),
           type: "group",
-          geom: { ox: 0, oy: 0, scale: 1, children },
+          geom: { ox: 0, oy: 0, scale: IMAGINE_DEFAULT_SCALE, children },
           options: currentOptions(newSeed()),
           drawable: null
         };
