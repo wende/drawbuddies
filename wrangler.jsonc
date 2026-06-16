@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ZAI_MODEL": "glm-4.6",
+    "MINIMAX_MODEL": "MiniMax-M3"
+  },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
