@@ -302,16 +302,24 @@ After deploying, the app is at `https://drawbuddies.YOUR_SUBDOMAIN.workers.dev`.
 
 1. **Live sync** — open two tabs side by side; draw in one, watch it appear in the
    other within ~1s.
-2. **Persistence** — draw something, close all tabs, reopen later — it's still
-   there (state lives in SQLite, not memory).
+2. **Persistence** — draw something, close all tabs, reopen later — it's still there
+   (state lives in SQLite, not memory).
 3. **Presence** — the "N people here" chip rises and falls as tabs open and close.
 4. **Rooms** — append `?room=yourname` to the URL for a separate, isolated canvas.
-5. **Recognition** — with the Smart tool, scribble a rough box/circle/line and
-   watch it snap; scribble inside a shape to fill it.
+5. **Recognition** — with the Draw tool, scribble a rough box/circle/line and watch
+   it snap; scribble inside a shape to fill it.
+6. **Transforms** — Select a few shapes, then use Move / Scale / Rotate on the whole
+   selection.
+7. **Avatars** — open the Avatar editor, draw a little character, save it, and walk
+   it around with WASD while watching another tab.
+8. **Imagine** — pick the Imagine tool, type a prompt (e.g. "a cat"), and insert the
+   generated drawing onto the canvas.
 
 ## Free-tier cost notes
 
 - **Durable Objects** and **SQLite storage** are included in the free Workers plan.
 - **WebSocket messages** are billed at a 20:1 ratio (20 messages = 1 request unit);
   optimistic-apply + broadcast-except-sender keeps message volume low.
+- **Imagine calls** are the only variable cost and are gated behind your own LLM API
+  key plus a per-IP throttle; leave the keys unset to disable the feature entirely.
 - Typical collaborative use fits comfortably within free limits.

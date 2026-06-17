@@ -16,7 +16,7 @@ const DEFAULT_MINIMAX_MODEL = 'MiniMax-M3';
 
 // Z.ai (Zhipu GLM) Coding Plan, OpenAI-compatible endpoint.
 const ZAI_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions';
-const DEFAULT_ZAI_MODEL = 'glm-4.6';
+const DEFAULT_ZAI_MODEL = 'glm-4.7';
 
 const IMAGINE_TIMEOUT_MS = 45_000;
 const MAX_PROMPT_LENGTH = 500;
@@ -30,7 +30,9 @@ Respond with a SINGLE self-contained <svg> element and nothing else — no prose
 Rules:
 - Use only these elements: path, line, rect, circle, ellipse, polyline, polygon.
 - Use a viewBox of "0 0 512 512". Do not set width/height attributes.
-- Draw with stroked outlines (stroke, stroke-width). Fills are optional and may be ignored.
+- Draw with stroked outlines. Use fill sparingly and only when it meaningfully represents the subject (e.g. a red apple, a blue sky). Most shapes should have no fill or fill="none".
+- Set stroke and fill colors directly as attributes (e.g. stroke="#333" fill="#e74c3c"). Default to stroke="#333" when color is not meaningful.
+- Draw the object itself only — no background, no shadow, no border frame, no decorative surround.
 - Do NOT use the transform attribute. Bake every position and rotation directly into the coordinates.
 - Do NOT use: <text>, <image>, <use>, <defs>, gradients, filters, masks, clip-paths, CSS <style>, or inline style attributes.
 - Keep paths simple (M/L/C/Q/Z commands). Aim for a clean line drawing, not a photo.`;
@@ -74,13 +76,23 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 // Pull a single <svg>...</svg> out of the model's reply, tolerating code fences
-// or stray prose. Returns null if no SVG is present or it is too large.
+// or stray prose. If the model returned bare SVG elements without a wrapper,
+// wraps them in a 512×512 viewBox. Returns null if no SVG is present or it is too large.
 function extractSvg(content: string): string | null {
-  const match = content.match(/<svg[\s\S]*?<\/svg>/i);
-  if (!match) return null;
-  const svg = match[0];
-  if (new TextEncoder().encode(svg).length > MAX_SVG_BYTES) return null;
-  return svg;
+  const svgMatch = content.match(/<svg[\s\S]*?<\/svg>/i);
+  if (svgMatch) {
+    const svg = svgMatch[0];
+    return new TextEncoder().encode(svg).length > MAX_SVG_BYTES ? null : svg;
+  }
+
+  // Fallback: model omitted the <svg> wrapper and returned bare elements.
+  const elemMatch = content.match(/(<(?:path|rect|circle|ellipse|line|polyline|polygon)\b[\s\S]*)/i);
+  if (elemMatch) {
+    const wrapped = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${elemMatch[1]}</svg>`;
+    return new TextEncoder().encode(wrapped).length > MAX_SVG_BYTES ? null : wrapped;
+  }
+
+  return null;
 }
 
 interface LlmProvider {
@@ -135,6 +147,7 @@ export async function handleImagine(request: Request, env: Env): Promise<Respons
   }
   const provider = resolveProvider(env);
   if (!provider) {
+    console.error('[imagine] No provider configured — set ZAI_API_KEY or MINIMAX_API_KEY');
     return jsonResponse({ error: 'Imagine is not configured' }, 503);
   }
 
@@ -156,6 +169,8 @@ export async function handleImagine(request: Request, env: Env): Promise<Respons
     return jsonResponse({ error: 'Prompt is too long' }, 400);
   }
 
+  console.log(`[imagine] provider=${provider.name} model=${provider.model} promptLen=${prompt.length}`);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), IMAGINE_TIMEOUT_MS);
 
@@ -174,7 +189,9 @@ export async function handleImagine(request: Request, env: Env): Promise<Respons
     body.thinking = { type: 'disabled' };
   }
 
+  const fetchStart = Date.now();
   try {
+    console.log(`[imagine] fetching ${provider.url}`);
     const upstream = await fetch(provider.url, {
       method: 'POST',
       headers: {
@@ -184,8 +201,11 @@ export async function handleImagine(request: Request, env: Env): Promise<Respons
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+    console.log(`[imagine] upstream responded: status=${upstream.status} elapsed=${Date.now() - fetchStart}ms`);
 
     if (!upstream.ok) {
+      const errText = await upstream.text().catch(() => '(unreadable)');
+      console.error(`[imagine] upstream error ${upstream.status}: ${errText.slice(0, 300)}`);
       return jsonResponse({ error: 'Upstream model error' }, 502);
     }
 
@@ -197,19 +217,26 @@ export async function handleImagine(request: Request, env: Env): Promise<Respons
     // SVG in reasoning_content, so fall back to it before giving up.
     const content = message?.content || message?.reasoning_content;
     if (typeof content !== 'string') {
+      console.error('[imagine] empty model response; choices:', JSON.stringify(result.choices?.slice(0, 1)));
       return jsonResponse({ error: 'Empty model response' }, 502);
     }
+    console.log(`[imagine] content received: ${content.length} chars`);
 
     const svg = extractSvg(content);
     if (!svg) {
+      console.error(`[imagine] no usable SVG in response (first 200 chars): ${content.slice(0, 200)}`);
       return jsonResponse({ error: 'Model did not return a usable SVG' }, 502);
     }
+    console.log(`[imagine] SVG extracted: ${svg.length} bytes, total elapsed=${Date.now() - fetchStart}ms`);
 
     return jsonResponse({ svg });
   } catch (err) {
+    const elapsed = Date.now() - fetchStart;
     if (err instanceof Error && err.name === 'AbortError') {
+      console.error(`[imagine] timed out after ${elapsed}ms (limit=${IMAGINE_TIMEOUT_MS}ms)`);
       return jsonResponse({ error: 'Model request timed out' }, 504);
     }
+    console.error(`[imagine] fetch failed after ${elapsed}ms:`, err);
     return jsonResponse({ error: 'Failed to reach the model' }, 502);
   } finally {
     clearTimeout(timeout);
