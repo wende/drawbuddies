@@ -432,24 +432,29 @@ export function avatarPartForShape(shape) {
 
 // ===== Bounds =====
 
+let helperSvg = null;
+let helperPath = null;
+
 export function measurePathBounds(d, ox = 0, oy = 0) {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("width", "0");
-  svg.setAttribute("height", "0");
-  svg.style.position = "absolute";
-  svg.style.visibility = "hidden";
-  const path = document.createElementNS(ns, "path");
-  path.setAttribute("d", d);
-  svg.appendChild(path);
-  document.body.appendChild(svg);
+  if (!helperSvg) {
+    const ns = "http://www.w3.org/2000/svg";
+    helperSvg = document.createElementNS(ns, "svg");
+    helperSvg.style.position = "absolute";
+    helperSvg.style.width = "0";
+    helperSvg.style.height = "0";
+    helperSvg.style.overflow = "hidden";
+    helperSvg.style.pointerEvents = "none";
+    helperPath = document.createElementNS(ns, "path");
+    helperSvg.appendChild(helperPath);
+    document.body.appendChild(helperSvg);
+  }
+  helperPath.setAttribute("d", d);
   let box = { x: 0, y: 0, width: 0, height: 0 };
   try {
-    box = path.getBBox();
+    box = helperPath.getBBox();
   } catch (err) {
     console.warn("Failed to measure path bounds:", err);
   }
-  document.body.removeChild(svg);
   return {
     x: round1(box.x + ox),
     y: round1(box.y + oy),

@@ -177,7 +177,9 @@ export function distancePointToLine(point, start, end) {
 
   if (!lengthSquared) return Math.hypot(px - x1, py - y1);
 
-  return Math.abs(dy * px - dx * py + x2 * y1 - y2 * x1) / Math.sqrt(lengthSquared);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
 export function distanceToPolyline(point, points) {
