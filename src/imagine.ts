@@ -43,7 +43,7 @@ const IMAGINE_WINDOW_MS = 60_000;
 const IMAGINE_MAX_PER_WINDOW = 10;
 const imagineHits = new Map<string, number[]>();
 
-function imagineRateLimited(ip: string): boolean {
+export function imagineRateLimited(ip: string): boolean {
   const now = Date.now();
   if (imagineHits.size > 1000) {
     for (const [key, times] of imagineHits.entries()) {
@@ -68,6 +68,13 @@ function imagineRateLimited(ip: string): boolean {
   return false;
 }
 
+// Test-only: clear the in-memory rate-limit state so unit tests don't bleed
+// into each other. Not exported from the Worker module surface — only imported
+// from tests/unit/.
+export function __resetImagineRateLimitForTest() {
+  imagineHits.clear();
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -78,7 +85,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 // Pull a single <svg>...</svg> out of the model's reply, tolerating code fences
 // or stray prose. If the model returned bare SVG elements without a wrapper,
 // wraps them in a 512×512 viewBox. Returns null if no SVG is present or it is too large.
-function extractSvg(content: string): string | null {
+export function extractSvg(content: string): string | null {
   const svgMatch = content.match(/<svg[\s\S]*?<\/svg>/i);
   if (svgMatch) {
     const svg = svgMatch[0];
@@ -95,7 +102,7 @@ function extractSvg(content: string): string | null {
   return null;
 }
 
-interface LlmProvider {
+export interface LlmProvider {
   name: string;
   url: string;
   apiKey: string;
@@ -107,7 +114,7 @@ interface LlmProvider {
 
 // Pick the LLM provider. An explicit IMAGINE_PROVIDER wins; otherwise auto-detect
 // from whichever API key is set (Z.ai preferred). Returns null if none configured.
-function resolveProvider(env: Env): LlmProvider | null {
+export function resolveProvider(env: Env): LlmProvider | null {
   const zai: LlmProvider | null = env.ZAI_API_KEY
     ? {
         name: 'zai',
