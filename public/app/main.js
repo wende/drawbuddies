@@ -9,6 +9,7 @@ import { loadPlayerState, net } from "./net.js";
 import {
   cancelPointer,
   finishPointer,
+  finishLostPointerCapture,
   handleMovementKey,
   onPointerDown,
   onPointerMove,
@@ -89,13 +90,7 @@ canvas.addEventListener("pointerdown", onPointerDown);
 canvas.addEventListener("pointermove", onPointerMove);
 canvas.addEventListener("pointerup", finishPointer);
 canvas.addEventListener("pointercancel", cancelPointer);
-canvas.addEventListener("lostpointercapture", () => {
-  if (state.activeDrag) {
-    state.activeDrag = null;
-    document.body.classList.remove("dragging-shape");
-    redraw();
-  }
-});
+canvas.addEventListener("lostpointercapture", finishLostPointerCapture);
 
 window.addEventListener("resize", resize);
 

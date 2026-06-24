@@ -404,25 +404,43 @@ export function onPointerMove(event) {
   redraw(previewShape());
 }
 
-export function finishPointer(event) {
+function completePointer(event, { captureFinalPoint = true, releaseCapture = true } = {}) {
   if (!state.activeDrag || state.activeDrag.pointerId !== event.pointerId) return;
 
   event.preventDefault();
 
-  try {
-    canvas.releasePointerCapture(event.pointerId);
-  } catch {
-    // Pointer capture may already be released.
+  const drag = state.activeDrag;
+
+  // Browsers are allowed to omit the last pointermove before pointerup. Include
+  // the terminal sample so a quick stroke is not mistaken for a click.
+  if (captureFinalPoint && drag.tool === "smart") {
+    const point = canvasPoint(event);
+    drag.current = point;
+    pushStrokePoint(point);
   }
 
-  if (state.activeDrag.tool === "hand") {
-    const moved = state.activeDrag.moved;
-    const dragShapes = state.activeDrag.dragShapes;
+  const completedShape =
+    drag.tool === "smart" || drag.tool === "select" ? previewShape() : null;
+
+  // Clear first: releasePointerCapture can dispatch lostpointercapture. That
+  // event must not erase or double-commit the operation being completed here.
+  state.activeDrag = null;
+
+  if (releaseCapture) {
+    try {
+      canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may already be released.
+    }
+  }
+
+  if (drag.tool === "hand") {
+    const moved = drag.moved;
+    const dragShapes = drag.dragShapes;
     const tw = 68, th = 78;
     const trashBounds = { x: 24, y: state.viewHeight - th - 88, width: tw, height: th };
-    const screenCurrent = worldToScreen(state.activeDrag.current);
+    const screenCurrent = worldToScreen(drag.current);
     const droppedOnTrash = moved && isOverBounds(screenCurrent, trashBounds);
-    state.activeDrag = null;
     document.body.classList.remove("dragging-shape");
     if (droppedOnTrash) {
       for (const shape of dragShapes) {
@@ -442,10 +460,9 @@ export function finishPointer(event) {
     return;
   }
 
-  if (isTransformTool(state.activeDrag.tool)) {
-    const moved = state.activeDrag.moved;
-    const dragShapes = state.activeDrag.dragShapes;
-    state.activeDrag = null;
+  if (isTransformTool(drag.tool)) {
+    const moved = drag.moved;
+    const dragShapes = drag.dragShapes;
     if (moved) {
       save();
       for (const shape of dragShapes) {
@@ -456,11 +473,9 @@ export function finishPointer(event) {
     return;
   }
 
-  if (state.activeDrag.tool === "select") {
-    const shape = previewShape();
-    state.activeDrag = null;
-    if (shape && isMeaningful(shape)) {
-      applySelectionBox(shape);
+  if (drag.tool === "select") {
+    if (completedShape && isMeaningful(completedShape)) {
+      applySelectionBox(completedShape);
     } else {
       clearSelection();
     }
@@ -468,8 +483,7 @@ export function finishPointer(event) {
     return;
   }
 
-  let shape = previewShape();
-  state.activeDrag = null;
+  let shape = completedShape;
 
   if (shape && shape.type === "smart") {
     if (tryApplySmartFill(shape)) {
@@ -489,8 +503,31 @@ export function finishPointer(event) {
   redraw();
 }
 
+export function finishPointer(event) {
+  completePointer(event);
+}
+
+export function finishLostPointerCapture(event) {
+  if (!state.activeDrag || state.activeDrag.pointerId !== event.pointerId) return;
+
+  if (state.activeDrag.tool === "smart") {
+    completePointer(event, { captureFinalPoint: false, releaseCapture: false });
+    return;
+  }
+
+  cancelPointer(event);
+}
+
 export function cancelPointer(event) {
   if (!state.activeDrag || state.activeDrag.pointerId !== event.pointerId) return;
+
+  // A browser or input device can cancel a pointer after delivering a valid
+  // stroke. Preserve meaningful drawing work instead of making it disappear.
+  if (state.activeDrag.tool === "smart") {
+    completePointer(event, { captureFinalPoint: false, releaseCapture: false });
+    return;
+  }
+
   state.activeDrag = null;
   document.body.classList.remove("dragging-shape");
   redraw();
