@@ -31,10 +31,6 @@
     return Math.round(n * 10) / 10;
   }
 
-  function roundPoint(point) {
-    return [round1(point[0]), round1(point[1])];
-  }
-
   function normalizeColor(value) {
     if (!value) return null;
 
@@ -191,21 +187,10 @@
       return out;
     }
 
-    if (tag === "polyline") {
+    if (tag === "polyline" || tag === "polygon") {
       out.push(
         withElementSeed({
-          type: "polyline",
-          points: pointsFromString(node.getAttribute("points")),
-          style
-        })
-      );
-      return out;
-    }
-
-    if (tag === "polygon") {
-      out.push(
-        withElementSeed({
-          type: "polygon",
+          type: tag,
           points: pointsFromString(node.getAttribute("points")),
           style
         })
@@ -336,20 +321,12 @@
       };
     }
 
-    if (element.type === "polyline") {
+    if (element.type === "polyline" || element.type === "polygon") {
       if (element.points.length < 2) return null;
+      const closed = element.type === "polygon";
       return {
         type: "path",
-        geom: { d: pointsToPathD(element.points), ox: 0, oy: 0 },
-        options
-      };
-    }
-
-    if (element.type === "polygon") {
-      if (element.points.length < 2) return null;
-      return {
-        type: "path",
-        geom: { d: pointsToPathD(element.points, true), ox: 0, oy: 0 },
+        geom: { d: pointsToPathD(element.points, closed), ox: 0, oy: 0 },
         options
       };
     }
