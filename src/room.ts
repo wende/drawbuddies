@@ -19,6 +19,16 @@ import {
   SyncMessage,
 } from './protocol';
 
+/** Serialize a shape into the JSON form persisted in the `shapes.data` column. */
+function serializeShape(shape: Shape): string {
+  return JSON.stringify({
+    id: shape.id,
+    type: shape.type,
+    geom: shape.geom,
+    options: shape.options,
+  });
+}
+
 export class CanvasRoom implements DurableObject {
   private sql: SqlStorage;
 
@@ -178,12 +188,7 @@ export class CanvasRoom implements DurableObject {
    * in place (preserving its position in the z-order).
    */
   private upsertShape(shape: Shape): void {
-    const data = JSON.stringify({
-      id: shape.id,
-      type: shape.type,
-      geom: shape.geom,
-      options: shape.options,
-    });
+    const data = serializeShape(shape);
 
     const updated = this.sql.exec(
       `UPDATE shapes SET data = ? WHERE id = ?`,
@@ -205,15 +210,20 @@ export class CanvasRoom implements DurableObject {
    * Replace the entire shape list (used for undo). Order follows the array.
    */
   private replaceAll(shapes: Shape[]): void {
-    this.sql.exec(`DELETE FROM shapes`);
-    shapes.forEach((shape, index) => {
-      const data = JSON.stringify({
-        id: shape.id,
-        type: shape.type,
-        geom: shape.geom,
-        options: shape.options,
+    // Batch the delete + up-to-MAX_SHAPES inserts into a single SQLite
+    // transaction. transactionSync commits on success and rolls back if the
+    // closure throws, keeping the rewrite atomic and avoiding a per-statement
+    // commit for every row.
+    this.state.storage.transactionSync(() => {
+      this.sql.exec(`DELETE FROM shapes`);
+      shapes.forEach((shape, index) => {
+        this.sql.exec(
+          `INSERT OR REPLACE INTO shapes (id, ord, data) VALUES (?, ?, ?)`,
+          shape.id,
+          index,
+          serializeShape(shape)
+        );
       });
-      this.sql.exec(`INSERT OR REPLACE INTO shapes (id, ord, data) VALUES (?, ?, ?)`, shape.id, index, data);
     });
   }
 
@@ -325,45 +335,37 @@ export class CanvasRoom implements DurableObject {
     api.serializeAttachment?.(attachment);
   }
 
-  private broadcastAll(msg: ServerMessage): void {
-    const json = JSON.stringify(msg);
+  /**
+   * Send a pre-serialized message to every connected WebSocket, optionally
+   * skipping one (e.g. the sender). Closing sockets are ignored.
+   */
+  private sendToAll(json: string, except?: WebSocket): void {
     for (const ws of this.state.getWebSockets()) {
+      if (ws === except) continue;
       try {
         ws.send(json);
       } catch {
         // Socket may be closing; ignore.
       }
     }
+  }
+
+  private broadcastAll(msg: ServerMessage): void {
+    this.sendToAll(JSON.stringify(msg));
   }
 
   /**
    * Broadcast a message to every connected WebSocket except the sender.
    */
   private broadcastExcept(sender: WebSocket, msg: ServerMessage): void {
-    const json = JSON.stringify(msg);
-    for (const ws of this.state.getWebSockets()) {
-      if (ws === sender) continue;
-      try {
-        ws.send(json);
-      } catch {
-        // Socket may be closing; ignore.
-      }
-    }
+    this.sendToAll(JSON.stringify(msg), sender);
   }
 
   /**
    * Broadcast the current connection count to all clients.
    */
   private broadcastCount(): void {
-    const count = this.state.getWebSockets().length;
-    const msg: CountMessage = { type: 'count', count };
-    const json = JSON.stringify(msg);
-    for (const ws of this.state.getWebSockets()) {
-      try {
-        ws.send(json);
-      } catch {
-        // ignore
-      }
-    }
+    const msg: CountMessage = { type: 'count', count: this.state.getWebSockets().length };
+    this.sendToAll(JSON.stringify(msg));
   }
 }

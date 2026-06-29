@@ -14,16 +14,16 @@ import {
   boxCenter,
   canStoreRotation,
   clampNumber,
+  clone,
   curveRenderablePoints,
   distancePointToLine,
   distanceToPolyline,
   expandedBoxContains,
   freehandRenderablePoints,
+  mergeBoxBounds,
   normalizedBox,
   pointBounds,
   pathLength,
-  pointInsideBox,
-  avatarGuide,
   rotatedBoxBounds,
   rotatePointObject,
   round1,
@@ -147,37 +147,20 @@ export function clearSelection() {
   state.selectedIds = [];
 }
 
-export function hasSelection() {
-  return state.selectedIds.length > 0;
-}
-
 export function selectedShapes() {
   const idSet = new Set(state.selectedIds);
   return orderedShapes().filter((shape) => idSet.has(shape.id));
 }
 
 export function selectionBounds() {
-  const items = selectedShapes();
-  if (!items.length) return null;
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-
-  for (const shape of items) {
-    const box = shapeBounds(shape);
-    minX = Math.min(minX, box.x);
-    minY = Math.min(minY, box.y);
-    maxX = Math.max(maxX, box.x + box.width);
-    maxY = Math.max(maxY, box.y + box.height);
-  }
+  const ext = mergeBoxBounds(selectedShapes().map(shapeBounds));
+  if (!ext) return null;
 
   return {
-    x: minX,
-    y: minY,
-    width: Math.max(0, maxX - minX),
-    height: Math.max(0, maxY - minY)
+    x: ext.minX,
+    y: ext.minY,
+    width: Math.max(0, ext.maxX - ext.minX),
+    height: Math.max(0, ext.maxY - ext.minY)
   };
 }
 
@@ -358,23 +341,16 @@ export function groupScale(geom) {
 }
 
 export function groupBounds(shape) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const child of groupChildren(shape)) {
-    const b = shapeBaseBounds(child);
-    minX = Math.min(minX, b.x);
-    minY = Math.min(minY, b.y);
-    maxX = Math.max(maxX, b.x + b.width);
-    maxY = Math.max(maxY, b.y + b.height);
-  }
+  const ext = mergeBoxBounds(groupChildren(shape).map(shapeBaseBounds));
   const ox = (shape.geom && shape.geom.ox) || 0;
   const oy = (shape.geom && shape.geom.oy) || 0;
   const scale = groupScale(shape.geom);
-  if (!Number.isFinite(minX)) return { x: ox, y: oy, width: 0, height: 0 };
+  if (!ext) return { x: ox, y: oy, width: 0, height: 0 };
   return {
-    x: minX * scale + ox,
-    y: minY * scale + oy,
-    width: (maxX - minX) * scale,
-    height: (maxY - minY) * scale
+    x: ext.minX * scale + ox,
+    y: ext.minY * scale + oy,
+    width: (ext.maxX - ext.minX) * scale,
+    height: (ext.maxY - ext.minY) * scale
   };
 }
 
@@ -417,17 +393,6 @@ export function pointInShapeLocalSpace(shape, point) {
   const rotation = shapeRotation(shape);
   if (!rotation || !canStoreRotation(shape)) return point;
   return rotatePointObject(point, boxCenter(shapeBaseBounds(shape)), -rotation);
-}
-
-export function avatarPartForShape(shape) {
-  const box = shapeBounds(shape);
-  const center = boxCenter(box);
-  const guide = avatarGuide();
-
-  if (pointInsideBox(center, guide.body)) return "body";
-  if (pointInsideBox(center, guide.leftLeg)) return "leftLeg";
-  if (pointInsideBox(center, guide.rightLeg)) return "rightLeg";
-  return null;
 }
 
 // ===== Bounds =====
@@ -607,10 +572,7 @@ export function save() {
 }
 
 export function cloneShapeData(shape) {
-  const data = serializeShape(shape);
-  return typeof structuredClone === "function"
-    ? structuredClone(data)
-    : JSON.parse(JSON.stringify(data));
+  return clone(serializeShape(shape));
 }
 
 export function hydrateShape(shapeData) {
@@ -642,10 +604,6 @@ export function hydrateShapeList(list) {
 export function hydrateAvatarShapeList(list) {
   const source = Array.isArray(list) && list.length ? list : defaultAvatarData();
   return hydrateShapeList(source).slice(0, 250);
-}
-
-export function avatarSnapshot(shapesToSnapshot = state.localPlayer.avatar) {
-  return shapesToSnapshot.map(cloneShapeData);
 }
 
 export function load() {

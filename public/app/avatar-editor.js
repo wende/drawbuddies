@@ -19,6 +19,7 @@ import {
   clampNumber,
   clone,
   isOverBounds,
+  mergeBoxBounds,
   normalizedBox,
   pointerAngle,
   pointerDistance,
@@ -174,23 +175,15 @@ export const avatarEditor = (() => {
   }
 
   function editorSelectionBounds() {
-    const items = editorSelectedShapes();
-    if (!items.length) return null;
+    const ext = mergeBoxBounds(editorSelectedShapes().map(shapeBounds));
+    if (!ext) return null;
 
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (const shape of items) {
-      const box = shapeBounds(shape);
-      minX = Math.min(minX, box.x);
-      minY = Math.min(minY, box.y);
-      maxX = Math.max(maxX, box.x + box.width);
-      maxY = Math.max(maxY, box.y + box.height);
-    }
-
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    return {
+      x: ext.minX,
+      y: ext.minY,
+      width: ext.maxX - ext.minX,
+      height: ext.maxY - ext.minY
+    };
   }
 
   function drawEditorSelection() {
