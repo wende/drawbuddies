@@ -79,6 +79,24 @@ export function boundsFromPoints(points) {
   };
 }
 
+// Combine a list of {x,y,width,height} boxes into their overall extent,
+// returning { minX, minY, maxX, maxY } — or null when the list is empty.
+export function mergeBoxBounds(boxes) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const box of boxes) {
+    minX = Math.min(minX, box.x);
+    minY = Math.min(minY, box.y);
+    maxX = Math.max(maxX, box.x + box.width);
+    maxY = Math.max(maxY, box.y + box.height);
+  }
+
+  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+}
+
 export function normalizedBox(geom) {
   const x = Math.min(geom.x1, geom.x2);
   const y = Math.min(geom.y1, geom.y2);
@@ -185,24 +203,11 @@ export function distancePointToLine(point, start, end) {
 export function distanceToPolyline(point, points) {
   if (!points || points.length < 2) return Infinity;
 
+  const tuple = [point.x, point.y];
   let best = Infinity;
 
   for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
-    const lengthSquared = dx * dx + dy * dy;
-
-    let t = 0;
-    if (lengthSquared > 0) {
-      t = ((point.x - a[0]) * dx + (point.y - a[1]) * dy) / lengthSquared;
-      t = Math.max(0, Math.min(1, t));
-    }
-
-    const x = a[0] + dx * t;
-    const y = a[1] + dy * t;
-    best = Math.min(best, Math.hypot(point.x - x, point.y - y));
+    best = Math.min(best, distancePointToLine(tuple, points[i - 1], points[i]));
   }
 
   return best;

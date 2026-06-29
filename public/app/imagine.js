@@ -5,7 +5,7 @@
 // flight. Each finished imagining becomes a single "group" shape.
 
 import { ctx, newId, newSeed, state } from "./state.js";
-import { cameraOffset, worldToScreen } from "./geometry.js";
+import { cameraOffset, mergeBoxBounds, worldToScreen } from "./geometry.js";
 import { buildDrawable, currentOptions, save, serializeShape, shapeBounds } from "./shapes.js";
 import { translateGeom } from "./transforms.js";
 import { recordHistory } from "./history.js";
@@ -33,15 +33,7 @@ function svgToShapes(svg) {
 
 // Combined bounding box of a list of shapes in world coords (or null).
 function shapesBoundingBox(list) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const shape of list) {
-    const b = shapeBounds(shape);
-    minX = Math.min(minX, b.x);
-    minY = Math.min(minY, b.y);
-    maxX = Math.max(maxX, b.x + b.width);
-    maxY = Math.max(maxY, b.y + b.height);
-  }
-  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+  return mergeBoxBounds(list.map(shapeBounds));
 }
 
 // Translate a batch so its combined bounding box centers on `target` (world).
