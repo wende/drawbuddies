@@ -210,14 +210,20 @@ export class CanvasRoom implements DurableObject {
    * Replace the entire shape list (used for undo). Order follows the array.
    */
   private replaceAll(shapes: Shape[]): void {
-    this.sql.exec(`DELETE FROM shapes`);
-    shapes.forEach((shape, index) => {
-      this.sql.exec(
-        `INSERT OR REPLACE INTO shapes (id, ord, data) VALUES (?, ?, ?)`,
-        shape.id,
-        index,
-        serializeShape(shape)
-      );
+    // Batch the delete + up-to-MAX_SHAPES inserts into a single SQLite
+    // transaction. transactionSync commits on success and rolls back if the
+    // closure throws, keeping the rewrite atomic and avoiding a per-statement
+    // commit for every row.
+    this.state.storage.transactionSync(() => {
+      this.sql.exec(`DELETE FROM shapes`);
+      shapes.forEach((shape, index) => {
+        this.sql.exec(
+          `INSERT OR REPLACE INTO shapes (id, ord, data) VALUES (?, ?, ?)`,
+          shape.id,
+          index,
+          serializeShape(shape)
+        );
+      });
     });
   }
 
