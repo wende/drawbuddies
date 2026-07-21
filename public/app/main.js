@@ -16,6 +16,7 @@ import {
   updateMovementHint
 } from "./input.js";
 import { avatarEditor } from "./avatar-editor.js";
+import { rooms } from "./rooms.js";
 
 function refreshControlLabels() {
   controls.roughnessValue.textContent = Number(controls.roughness.value).toFixed(1);
@@ -56,6 +57,7 @@ controls.undoBtn.addEventListener("click", undo);
 controls.redoBtn.addEventListener("click", redo);
 controls.clearBtn.addEventListener("click", clearAll);
 controls.avatarBtn.addEventListener("click", () => avatarEditor.open());
+controls.roomsBtn.addEventListener("click", () => rooms.openPanel());
 
 document.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();

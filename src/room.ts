@@ -7,6 +7,7 @@
 import {
   ClientMessage,
   CountMessage,
+  Env,
   MAX_SHAPES,
   PlayerMoveMessage,
   PlayerState,
@@ -18,11 +19,12 @@ import {
   SocketAttachment,
   SyncMessage,
 } from './protocol';
+import { registryStub } from './registry';
 
 export class CanvasRoom implements DurableObject {
   private sql: SqlStorage;
 
-  constructor(private state: DurableObjectState) {
+  constructor(private state: DurableObjectState, private env: Env) {
     this.sql = state.storage.sql;
     // `ord` preserves insertion order so the client's z-stacking stays stable.
     this.sql.exec(`
@@ -55,9 +57,13 @@ export class CanvasRoom implements DurableObject {
 
       const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
 
+      // The room code travels in the WS query string (`?room=CODE`); remember it
+      // on the socket so close handlers can report presence without the URL.
+      const code = url.searchParams.get('room') || 'main';
+
       // Accept the WebSocket using the Hibernation API.
       this.state.acceptWebSocket(server);
-      this.setSocketAttachment(server, { connectionId: crypto.randomUUID() });
+      this.setSocketAttachment(server, { connectionId: crypto.randomUUID(), code });
 
       // Remove player records whose connection is no longer active (e.g. after
       // a DO restart or abnormal disconnect where webSocketClose couldn't clean up).
@@ -74,6 +80,9 @@ export class CanvasRoom implements DurableObject {
 
       // Tell everyone about the new presence count.
       this.broadcastCount();
+
+      // Let the lobby registry know this (public) room gained a player.
+      this.reportPresence(code, this.state.getWebSockets().length);
 
       return new Response(null, { status: 101, webSocket: client });
     }
@@ -165,6 +174,36 @@ export class CanvasRoom implements DurableObject {
       this.broadcastAll({ type: 'player-remove', id: attachment.playerId });
     }
     this.broadcastCount();
+
+    if (attachment.code) {
+      // The closing socket may still be present in getWebSockets() here, so
+      // exclude it to report the true post-disconnect count to the registry.
+      const remaining = this.state.getWebSockets().filter((s) => s !== ws).length;
+      this.reportPresence(attachment.code, remaining);
+    }
+  }
+
+  /**
+   * Fire-and-forget heartbeat to the lobby registry. The registry ignores codes
+   * it doesn't track (private rooms), and `main` is never listed, so skip it.
+   * Never throws into the socket path.
+   */
+  private reportPresence(code: string, count: number): void {
+    if (code === 'main') return;
+    try {
+      const stub = registryStub(this.env.ROOM_REGISTRY);
+      this.state.waitUntil(
+        stub
+          .fetch('https://registry/heartbeat', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ code, count }),
+          })
+          .catch(() => {})
+      );
+    } catch {
+      // Registry binding unavailable; presence is best-effort.
+    }
   }
 
   private shapeCount(): number {

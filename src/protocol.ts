@@ -26,6 +26,9 @@ export interface PlayerState {
 export interface SocketAttachment {
   connectionId: string;
   playerId?: string;
+  // The room code this socket joined; lets webSocketClose report presence
+  // to the registry without access to the original request URL.
+  code?: string;
 }
 
 // Client -> Server messages
@@ -115,6 +118,84 @@ export const MAX_SHAPES = 5000;
 export const MAX_AVATAR_SHAPES = 250;
 export const MAX_PLAYER_COORD = 1_000_000;
 
+// ===== Rooms =====
+
+// Ambiguity-free alphabet: no 0/O, 1/I/L. Six characters → ~1.07e9 codes.
+export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const ROOM_CODE_LEN = 6;
+export const ROOM_TITLE_MAX = 60;
+export const DEFAULT_ROOM_TITLE = 'Untitled room';
+// How long an empty public room stays listed before it is pruned (24h).
+export const ROOM_LIST_TTL_MS = 24 * 60 * 60 * 1000;
+
+// A public room as tracked by the RoomRegistry DO and sent to the lobby.
+export interface RegistryRoom {
+  code: string;
+  title: string;
+  count: number;
+  createdAt: number;
+  lastSeenAt: number;
+}
+
+/**
+ * Generate a random room code from the ambiguity-free alphabet. `rng` is
+ * injectable so tests can make it deterministic.
+ */
+export function generateRoomCode(rng: () => number = Math.random): string {
+  let code = '';
+  for (let i = 0; i < ROOM_CODE_LEN; i++) {
+    code += ROOM_CODE_ALPHABET[Math.floor(rng() * ROOM_CODE_ALPHABET.length)];
+  }
+  return code;
+}
+
+/** True only for a string of exactly ROOM_CODE_LEN chars from the alphabet. */
+export function isValidRoomCode(code: unknown): code is string {
+  if (typeof code !== 'string' || code.length !== ROOM_CODE_LEN) return false;
+  for (const ch of code) {
+    if (!ROOM_CODE_ALPHABET.includes(ch)) return false;
+  }
+  return true;
+}
+
+/** Drop ASCII control characters (0x00–0x1F and 0x7F) from a string. */
+function stripControl(value: string): string {
+  let out = '';
+  for (const ch of value) {
+    const code = ch.charCodeAt(0);
+    if (code >= 32 && code !== 127) out += ch;
+  }
+  return out;
+}
+
+/** Trim, strip control chars, clamp length; fall back to a default title. */
+export function sanitizeRoomTitle(title: unknown): string {
+  const raw = typeof title === 'string' ? title : '';
+  const cleaned = stripControl(raw).trim().slice(0, ROOM_TITLE_MAX);
+  return cleaned || DEFAULT_ROOM_TITLE;
+}
+
+/**
+ * Partition rooms into those still worth listing and those to prune. A room is
+ * expired when it is empty and hasn't been seen within the TTL.
+ */
+export function filterActiveRooms(
+  rooms: RegistryRoom[],
+  now: number,
+  ttlMs: number = ROOM_LIST_TTL_MS
+): { active: RegistryRoom[]; expired: string[] } {
+  const active: RegistryRoom[] = [];
+  const expired: string[] = [];
+  for (const room of rooms) {
+    if (room.count <= 0 && now - room.lastSeenAt > ttlMs) {
+      expired.push(room.code);
+    } else {
+      active.push(room);
+    }
+  }
+  return { active, expired };
+}
+
 /**
  * Validate an incoming shape. Returns a normalized shape or null if invalid.
  * Keeps geom/options opaque but bounds their serialized size.
@@ -185,6 +266,7 @@ export function sanitizePlayer(player: unknown): PlayerState | null {
  */
 export interface Env {
   CANVAS_ROOM: DurableObjectNamespace;
+  ROOM_REGISTRY: DurableObjectNamespace;
   ASSETS: Fetcher;
   // "Imagine" LLM credentials. API keys are Worker secrets; model ids are plain
   // vars with sensible defaults. Provider is auto-detected from whichever key is
