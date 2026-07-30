@@ -25,6 +25,7 @@ import {
   serializeShape
 } from "./shapes.js";
 import { redraw } from "./render.js";
+import { parseRoomCode } from "./room-url.js";
 
 let playerInitialized = false;
 
@@ -160,7 +161,7 @@ function applyRemoteClear() {
 // ===== WebSocket connection =====
 
 export const net = (() => {
-  const roomName = new URLSearchParams(window.location.search).get("room") || "main";
+  const roomName = parseRoomCode(window.location.pathname, window.location.search);
   let ws = null;
   let connected = false;
   let reconnectTimer = null;

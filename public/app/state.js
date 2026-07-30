@@ -34,6 +34,7 @@ export const controls = {
   strokeWidth: document.getElementById("strokeWidth"),
   strokeWidthValue: document.getElementById("strokeWidthValue"),
   avatarBtn: document.getElementById("avatarBtn"),
+  roomsBtn: document.getElementById("roomsBtn"),
   undoBtn: document.getElementById("undoBtn"),
   redoBtn: document.getElementById("redoBtn"),
   clearBtn: document.getElementById("clearBtn")

@@ -6,12 +6,14 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "check": "tsc --noEmit",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:unit": "vitest run"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250616.0",
     "@playwright/test": "^1.61.0",
     "typescript": "^5.5.0",
+    "vitest": "^4.1.9",
     "wrangler": "^4.86.0"
   }
 }

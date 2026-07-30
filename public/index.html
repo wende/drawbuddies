@@ -482,6 +482,114 @@
       font: inherit;
     }
 
+    .rooms-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(18, 17, 14, 0.28);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .rooms-overlay[hidden] {
+      display: none;
+    }
+
+    .rooms-dialog {
+      width: min(420px, calc(100vw - 24px));
+      max-height: calc(100vh - 24px);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 252, 244, 0.96);
+      box-shadow: 0 24px 80px rgba(35, 32, 25, 0.26);
+    }
+
+    .rooms-dialog h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+    }
+
+    .rooms-dialog h3 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: rgba(32, 31, 28, 0.6);
+    }
+
+    .rooms-section + .rooms-section {
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+
+    .rooms-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    .room-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 10px;
+      text-align: left;
+      border-radius: 10px;
+    }
+
+    .room-item .room-count {
+      font-size: 12px;
+      color: rgba(32, 31, 28, 0.6);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rooms-empty {
+      font-size: 13px;
+      color: rgba(32, 31, 28, 0.55);
+      padding: 4px 2px;
+    }
+
+    .rooms-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rooms-row input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      outline: none;
+      background: rgba(255, 252, 244, 0.92);
+      color: var(--ink);
+      font: inherit;
+    }
+
+    .rooms-row label {
+      font-size: 13px;
+    }
+
+    .rooms-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
     .imagine-toast {
       position: fixed;
       z-index: 40;
@@ -547,6 +655,7 @@
       <span class="dot" id="statusDot"></span>
       <span id="presence">Connecting…</span>
     </div>
+    <button id="roomsBtn" class="avatar-button" type="button">Rooms ▾</button>
     <button id="avatarBtn" class="avatar-button" type="button">Avatar</button>
   </div>
 
@@ -665,8 +774,49 @@
     </div>
   </div>
 
+  <div id="roomsOverlay" class="rooms-overlay" hidden>
+    <div class="rooms-dialog" role="dialog" aria-modal="true" aria-labelledby="roomsTitle">
+      <h2 id="roomsTitle">Rooms</h2>
+
+      <div class="rooms-section">
+        <h3>Public rooms</h3>
+        <div id="roomsList" class="rooms-list" aria-live="polite">
+          <div class="rooms-empty">Loading…</div>
+        </div>
+      </div>
+
+      <div class="rooms-section">
+        <h3>Create a room</h3>
+        <div class="rooms-row">
+          <input id="roomTitle" type="text" maxlength="60" placeholder="Room title (public only)" />
+        </div>
+        <div class="rooms-row">
+          <label><input id="roomPublic" type="checkbox" checked /> List publicly</label>
+          <span style="flex:1"></span>
+          <button id="roomCreateBtn" class="primary" type="button">Create</button>
+        </div>
+      </div>
+
+      <div class="rooms-section">
+        <h3>Enter a code</h3>
+        <div class="rooms-row">
+          <input id="roomCodeInput" type="text" maxlength="6" placeholder="e.g. ABC234"
+                 autocapitalize="characters" autocomplete="off" spellcheck="false" />
+          <button id="roomJoinBtn" type="button">Go</button>
+        </div>
+        <div id="roomError" class="rooms-empty" hidden></div>
+      </div>
+
+      <div class="rooms-actions rooms-section">
+        <button id="roomsLobbyBtn" type="button">← Back to lobby</button>
+        <span style="flex:1"></span>
+        <button id="roomsCloseBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
-  <script src="svgtorough.js"></script>
-  <script type="module" src="app/main.js"></script>
+  <script src="/svgtorough.js"></script>
+  <script type="module" src="/app/main.js"></script>
 </body>
 </html>
