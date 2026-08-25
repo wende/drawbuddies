@@ -743,6 +743,8 @@ export const avatarEditor = (() => {
     overlay.hidden = true;
     editorActiveDrag = null;
     state.pressedMovementKeys.clear();
+    state.tapMoveTarget = null;
+    state.localPlayer.moving = false;
   }
 
   function commit() {

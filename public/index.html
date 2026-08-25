@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>DrawBuddies — Collaborative Canvas</title>
   <link rel="preload" href="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <style>
@@ -31,8 +31,10 @@
     body {
       width: 100%;
       height: 100%;
+      height: 100dvh;
       margin: 0;
       overflow: hidden;
+      overscroll-behavior: none;
       background:
         radial-gradient(circle at 20% 10%, rgba(255,255,255,0.55), transparent 24rem),
         radial-gradient(circle at 80% 90%, rgba(0,0,0,0.045), transparent 22rem),
@@ -40,12 +42,14 @@
         var(--paper);
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
     }
 
     canvas {
       display: block;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       touch-action: none;
       cursor: crosshair;
     }
@@ -60,6 +64,10 @@
 
     body.text-mode #canvas {
       cursor: text;
+    }
+
+    body.player-move-mode #canvas {
+      cursor: pointer;
     }
 
     body.select-mode #canvas {
@@ -77,7 +85,7 @@
     .toolbar {
       position: fixed;
       left: 50%;
-      bottom: 18px;
+      bottom: max(18px, env(safe-area-inset-bottom, 0px));
       z-index: 10;
       transform: translateX(-50%);
       display: flex;
@@ -94,6 +102,7 @@
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       user-select: none;
+      touch-action: manipulation;
     }
 
     .group {
@@ -170,8 +179,8 @@
 
     .hint {
       position: fixed;
-      left: 14px;
-      top: 12px;
+      left: max(14px, env(safe-area-inset-left, 0px));
+      top: max(12px, env(safe-area-inset-top, 0px));
       z-index: 8;
       max-width: min(560px, calc(100vw - 28px));
       padding: 8px 10px;
@@ -187,13 +196,14 @@
 
     .topbar {
       position: fixed;
-      right: 14px;
-      top: 12px;
+      right: max(14px, env(safe-area-inset-right, 0px));
+      top: max(12px, env(safe-area-inset-top, 0px));
       z-index: 9;
       display: flex;
       align-items: center;
       gap: 8px;
       user-select: none;
+      touch-action: manipulation;
     }
 
     .netstatus {
@@ -253,9 +263,52 @@
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
+    .move-hint-mobile {
+      display: none;
+    }
+
     .move-hint.hidden {
       opacity: 0;
       transform: translateX(-50%) translateY(4px);
+    }
+
+    .mode-switch {
+      display: none;
+      position: fixed;
+      right: max(12px, env(safe-area-inset-right, 0px));
+      bottom: max(12px, env(safe-area-inset-bottom, 0px));
+      z-index: 12;
+      align-items: stretch;
+      gap: 0;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      box-shadow: 0 12px 32px var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    .mode-switch button {
+      height: 36px;
+      min-width: 52px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .mode-switch button:hover {
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .mode-switch button.active {
+      color: #fffaf0;
+      background: var(--ink);
     }
 
     .avatar-overlay {
@@ -480,6 +533,7 @@
       background: rgba(255, 252, 244, 0.92);
       color: var(--ink);
       font: inherit;
+      font-size: 16px;
     }
 
     .rooms-overlay {
@@ -579,6 +633,7 @@
       background: rgba(255, 252, 244, 0.92);
       color: var(--ink);
       font: inherit;
+      font-size: 16px;
     }
 
     .rooms-row label {
@@ -605,17 +660,78 @@
       pointer-events: none;
     }
 
+    @media (max-width: 760px), (pointer: coarse) {
+      .mode-switch {
+        display: flex;
+      }
+
+      .move-hint-desktop {
+        display: none;
+      }
+
+      .move-hint-mobile {
+        display: inline;
+      }
+
+      .toolbar {
+        left: max(10px, env(safe-area-inset-left, 0px));
+        right: calc(104px + env(safe-area-inset-right, 0px));
+        bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        transform: none;
+        max-width: none;
+      }
+    }
+
     @media (max-width: 760px) {
       .toolbar {
-        bottom: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom, 0px));
         justify-content: flex-start;
         overflow-x: auto;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         border-radius: 14px;
+        gap: 6px;
+        padding: 8px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .toolbar > .group:first-child {
+        flex: 1 1 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+
+      .toolbar > .group:first-child::-webkit-scrollbar {
+        display: none;
       }
 
       .group {
         flex: 0 0 auto;
+      }
+
+      .group + .group {
+        padding-left: 8px;
+      }
+
+      button {
+        height: 40px;
+        padding: 0 12px;
+        font-size: 14px;
+      }
+
+      input[type="color"] {
+        width: 40px;
+        height: 40px;
+      }
+
+      .toolbar label {
+        font-size: 11px;
+        gap: 4px;
+      }
+
+      .toolbar .value {
+        min-width: 1.8em;
+        font-size: 11px;
       }
 
       .hint {
@@ -623,22 +739,105 @@
       }
 
       input[type="range"] {
-        width: 70px;
+        width: 64px;
       }
 
       .topbar {
-        left: 10px;
-        right: 10px;
+        left: max(10px, env(safe-area-inset-left, 0px));
+        right: max(10px, env(safe-area-inset-right, 0px));
+        top: max(10px, env(safe-area-inset-top, 0px));
         justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .netstatus {
+        padding: 6px 10px;
+        max-width: 46vw;
+      }
+
+      .netstatus #presence {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .avatar-button {
+        height: 40px;
+        padding: 0 12px;
+      }
+
+      .move-hint {
+        top: auto;
+        bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+        max-width: calc(100vw - 120px);
+        text-align: center;
+      }
+
+      .mode-switch button {
+        height: 40px;
+        min-width: 48px;
+      }
+
+      .avatar-overlay,
+      .rooms-overlay {
+        padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
       }
 
       .avatar-dialog {
         grid-template-columns: 1fr;
         overflow: auto;
+        width: min(760px, calc(100vw - 16px));
+        max-height: calc(100dvh - 16px);
+        padding: 10px;
+        gap: 10px;
       }
 
       .avatar-stage {
-        min-height: 280px;
+        min-height: 220px;
+        max-width: none;
+      }
+
+      .avatar-actions {
+        justify-content: stretch;
+      }
+
+      .avatar-actions button {
+        flex: 1 1 calc(50% - 8px);
+      }
+
+      .rooms-dialog {
+        width: min(420px, calc(100vw - 16px));
+        max-height: calc(100dvh - 16px);
+        padding: 14px;
+      }
+
+      .rooms-list {
+        max-height: min(240px, 36dvh);
+      }
+
+      .room-item,
+      .rooms-row button,
+      .rooms-actions button {
+        min-height: 44px;
+      }
+
+      .imagine-prompt {
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        transform: none;
+        bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+      }
+
+      .imagine-prompt input {
+        width: 100%;
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hide-narrow {
+        display: none;
       }
     }
   </style>
@@ -659,7 +858,10 @@
     <button id="avatarBtn" class="avatar-button" type="button">Avatar</button>
   </div>
 
-  <div id="moveHint" class="move-hint">WASD to move</div>
+  <div id="moveHint" class="move-hint">
+    <span class="move-hint-desktop">WASD to move</span>
+    <span class="move-hint-mobile">Switch to Move, then tap to walk</span>
+  </div>
 
   <div class="toolbar" role="toolbar" aria-label="Drawing controls">
     <div class="group" aria-label="Tools">
@@ -686,7 +888,7 @@
         <span id="roughnessValue" class="value">1.5</span>
       </label>
 
-      <label>
+      <label class="hide-narrow">
         Bow
         <input id="bowing" type="range" min="0" max="10" step="0.1" value="1.0" />
         <span id="bowingValue" class="value">1.0</span>
@@ -704,6 +906,11 @@
       <button id="redoBtn" type="button">Redo</button>
       <button id="clearBtn" type="button">Clear</button>
     </div>
+  </div>
+
+  <div id="modeSwitch" class="mode-switch" role="group" aria-label="Touch mode">
+    <button type="button" data-input-mode="draw" class="active" aria-pressed="true" title="Draw">Draw</button>
+    <button type="button" data-input-mode="move" aria-pressed="false" title="Tap to walk">Move</button>
   </div>
 
   <div id="avatarOverlay" class="avatar-overlay" hidden>

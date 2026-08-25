@@ -1,9 +1,12 @@
 // Input + tool dispatch: pointer handling for every tool (smart draw, select,
-// hand/move, scale, rotate, text, imagine), WASD movement, and the movement hint.
-// This is the orchestration layer that wires tools to the model and the network.
+// hand/move, scale, rotate, text, imagine), WASD / tap-to-move, and the
+// movement hint. This is the orchestration layer that wires tools to the model
+// and the network.
 
 import {
   canvas,
+  chromeBottomInset,
+  isTouchUi,
   MOVE_HINT_KEY,
   moveHintEl,
   newSeed,
@@ -89,6 +92,10 @@ export function isEditableTarget(target) {
   return false;
 }
 
+export function isPlayerMoveMode() {
+  return state.inputMode === "move" && isTouchUi();
+}
+
 export function updateMovementHint() {
   const seen = storedJson(MOVE_HINT_KEY, false);
   moveHintEl.classList.toggle("hidden", Boolean(seen));
@@ -100,7 +107,26 @@ function hideMovementHint() {
   updateMovementHint();
 }
 
-function movementVector() {
+export function syncInputModeUi() {
+  document.body.classList.toggle("touch-ui", isTouchUi());
+  document.body.classList.toggle("player-move-mode", isPlayerMoveMode());
+  document.querySelectorAll("[data-input-mode]").forEach((button) => {
+    const active = button.dataset.inputMode === state.inputMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+export function setInputMode(mode) {
+  state.inputMode = mode === "move" ? "move" : "draw";
+  if (!isPlayerMoveMode() && state.activeDrag && state.activeDrag.tool === "player-move") {
+    state.activeDrag = null;
+  }
+  syncInputModeUi();
+  redraw();
+}
+
+function keyboardVector() {
   const left = state.pressedMovementKeys.has("a");
   const right = state.pressedMovementKeys.has("d");
   const up = state.pressedMovementKeys.has("w");
@@ -115,6 +141,18 @@ function movementVector() {
   return { dx, dy, moving: length > 0 };
 }
 
+function faceFromDelta(dx) {
+  if (dx < 0) state.localPlayer.facing = -1;
+  else if (dx > 0) state.localPlayer.facing = 1;
+}
+
+function setTapMoveTarget(point) {
+  state.tapMoveTarget = { x: point.x, y: point.y };
+  hideMovementHint();
+  scheduleMovement();
+  redraw();
+}
+
 function broadcastPlayerMove(force = false) {
   const now = performance.now();
   if (!force && now - lastPlayerBroadcast < 50 && state.localPlayer.moving === lastBroadcastMoving) {
@@ -126,37 +164,70 @@ function broadcastPlayerMove(force = false) {
   net.sendPlayerMove();
 }
 
+function stopMoving(wasMoving) {
+  lastMoveTimestamp = 0;
+  state.avatarAnimationStart = 0;
+  state.localPlayer.moving = false;
+  if (wasMoving) {
+    broadcastPlayerMove(true);
+    redraw();
+  }
+}
+
 function updateMovement(timestamp) {
   movementFrameId = null;
   if (!lastMoveTimestamp) lastMoveTimestamp = timestamp;
 
   const dt = Math.min(0.05, Math.max(0, (timestamp - lastMoveTimestamp) / 1000));
   lastMoveTimestamp = timestamp;
-  const vector = movementVector();
-  const wasMoving = state.localPlayer.moving;
-  state.localPlayer.moving = vector.moving;
+  const keys = keyboardVector();
+  if (keys.moving) state.tapMoveTarget = null;
 
-  if (vector.moving) {
-    if (vector.dx < 0) {
-      state.localPlayer.facing = -1;
-    } else if (vector.dx > 0) {
-      state.localPlayer.facing = 1;
+  const wasMoving = state.localPlayer.moving;
+  let moving = false;
+
+  if (keys.moving) {
+    moving = true;
+    faceFromDelta(keys.dx);
+    state.localPlayer.x = round1(state.localPlayer.x + keys.dx * PLAYER_SPEED * dt);
+    state.localPlayer.y = round1(state.localPlayer.y + keys.dy * PLAYER_SPEED * dt);
+  } else if (state.tapMoveTarget) {
+    const tx = state.tapMoveTarget.x - state.localPlayer.x;
+    const ty = state.tapMoveTarget.y - state.localPlayer.y;
+    const dist = Math.hypot(tx, ty);
+    const step = PLAYER_SPEED * dt;
+    if (dist <= 2) {
+      state.tapMoveTarget = null;
+    } else if (dist <= step) {
+      faceFromDelta(tx);
+      state.localPlayer.x = round1(state.tapMoveTarget.x);
+      state.localPlayer.y = round1(state.tapMoveTarget.y);
+      state.tapMoveTarget = null;
+      moving = true;
+    } else {
+      moving = true;
+      faceFromDelta(tx);
+      state.localPlayer.x = round1(state.localPlayer.x + (tx / dist) * step);
+      state.localPlayer.y = round1(state.localPlayer.y + (ty / dist) * step);
     }
-    state.localPlayer.x = round1(state.localPlayer.x + vector.dx * PLAYER_SPEED * dt);
-    state.localPlayer.y = round1(state.localPlayer.y + vector.dy * PLAYER_SPEED * dt);
+  }
+
+  state.localPlayer.moving = moving;
+
+  if (moving) {
     hideMovementHint();
     broadcastPlayerMove();
     redraw();
-    movementFrameId = requestAnimationFrame(updateMovement);
+    if (keys.moving || state.tapMoveTarget) {
+      movementFrameId = requestAnimationFrame(updateMovement);
+      return;
+    }
+    // Final tap-to-move step snapped onto the target this frame.
+    stopMoving(true);
     return;
   }
 
-  lastMoveTimestamp = 0;
-  state.avatarAnimationStart = 0;
-  if (wasMoving) {
-    broadcastPlayerMove(true);
-    redraw();
-  }
+  stopMoving(wasMoving);
 }
 
 function scheduleMovement() {
@@ -282,6 +353,17 @@ export function onPointerDown(event) {
 
   const point = canvasPoint(event);
 
+  if (isPlayerMoveMode()) {
+    state.activeDrag = {
+      pointerId: event.pointerId,
+      tool: "player-move",
+      start: point,
+      current: point
+    };
+    setTapMoveTarget(point);
+    return;
+  }
+
   if (state.currentTool === "imagine") {
     openImaginePrompt(point);
     return;
@@ -358,6 +440,13 @@ export function onPointerMove(event) {
   if (!state.activeDrag || state.activeDrag.pointerId !== event.pointerId) return;
 
   event.preventDefault();
+
+  if (state.activeDrag.tool === "player-move") {
+    const point = canvasPoint(event);
+    state.activeDrag.current = point;
+    setTapMoveTarget(point);
+    return;
+  }
 
   if (state.activeDrag.tool === "hand") {
     const point = canvasPoint(event);
@@ -456,11 +545,25 @@ function completePointer(event, { captureFinalPoint = true, releaseCapture = tru
     }
   }
 
+  if (drag.tool === "player-move") {
+    if (captureFinalPoint) {
+      setTapMoveTarget(canvasPoint(event));
+    } else {
+      redraw();
+    }
+    return;
+  }
+
   if (drag.tool === "hand") {
     const moved = drag.moved;
     const dragShapes = drag.dragShapes;
     const tw = 68, th = 78;
-    const trashBounds = { x: 24, y: state.viewHeight - th - 88, width: tw, height: th };
+    const trashBounds = {
+      x: 24,
+      y: state.viewHeight - th - chromeBottomInset(),
+      width: tw,
+      height: th
+    };
     const screenCurrent = worldToScreen(drag.current);
     const droppedOnTrash = moved && isOverBounds(screenCurrent, trashBounds);
     document.body.classList.remove("dragging-shape");
@@ -532,7 +635,7 @@ export function finishPointer(event) {
 export function finishLostPointerCapture(event) {
   if (!state.activeDrag || state.activeDrag.pointerId !== event.pointerId) return;
 
-  if (state.activeDrag.tool === "smart") {
+  if (state.activeDrag.tool === "smart" || state.activeDrag.tool === "player-move") {
     completePointer(event, { captureFinalPoint: false, releaseCapture: false });
     return;
   }
@@ -545,7 +648,7 @@ export function cancelPointer(event) {
 
   // A browser or input device can cancel a pointer after delivering a valid
   // stroke. Preserve meaningful drawing work instead of making it disappear.
-  if (state.activeDrag.tool === "smart") {
+  if (state.activeDrag.tool === "smart" || state.activeDrag.tool === "player-move") {
     completePointer(event, { captureFinalPoint: false, releaseCapture: false });
     return;
   }

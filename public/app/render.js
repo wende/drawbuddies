@@ -6,6 +6,7 @@ import {
   AVATAR_DISPLAY_HEIGHT,
   AVATAR_FRAME,
   canvas,
+  chromeBottomInset,
   ctx,
   PLAYER_ID,
   rough,
@@ -156,6 +157,27 @@ function drawPlayers() {
   }
 
   drawAvatarAt(state.localPlayer, state.viewWidth / 2, state.viewHeight / 2, state.localPlayer.moving);
+}
+
+function drawTapMoveTarget() {
+  if (!state.tapMoveTarget) return;
+  const point = worldToScreen(state.tapMoveTarget);
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(32, 31, 28, 0.42)";
+  ctx.fillStyle = "rgba(32, 31, 28, 0.18)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(point.x - 13, point.y);
+  ctx.lineTo(point.x + 13, point.y);
+  ctx.moveTo(point.x, point.y - 13);
+  ctx.lineTo(point.x, point.y + 13);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawSelectionOverlay() {
@@ -321,11 +343,12 @@ export function redraw(preview = null) {
 
   ctx.restore();
   drawPlayers();
+  drawTapMoveTarget();
 
   if (state.activeDrag && state.activeDrag.tool === "hand") {
     const tw = 68, th = 78;
     const tx = 24;
-    const ty = state.viewHeight - th - 88;
+    const ty = state.viewHeight - th - chromeBottomInset();
     const screenCurrent = worldToScreen(state.activeDrag.current);
     const isHover = isOverBounds(screenCurrent, { x: tx, y: ty, width: tw, height: th });
     drawTrashCan(ctx, state.rc, tx, ty, tw, th, isHover);
@@ -333,9 +356,10 @@ export function redraw(preview = null) {
 }
 
 export function resize() {
+  const viewport = window.visualViewport;
   state.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 4));
-  state.viewWidth = window.innerWidth;
-  state.viewHeight = window.innerHeight;
+  state.viewWidth = Math.round(viewport?.width ?? window.innerWidth);
+  state.viewHeight = Math.round(viewport?.height ?? window.innerHeight);
 
   canvas.style.width = `${state.viewWidth}px`;
   canvas.style.height = `${state.viewHeight}px`;

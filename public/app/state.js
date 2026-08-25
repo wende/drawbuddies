@@ -21,6 +21,7 @@ export const MOVE_HINT_KEY = "drawbuddies:movement-hint:v1";
 export const AVATAR_FRAME = { width: 260, height: 360 };
 export const AVATAR_DISPLAY_HEIGHT = 132;
 export const PLAYER_SPEED = 220;
+export const TOUCH_UI_QUERY = "(max-width: 760px), (pointer: coarse)";
 
 export const canvas = document.getElementById("canvas");
 export const ctx = canvas.getContext("2d", { alpha: false });
@@ -43,6 +44,25 @@ export const controls = {
 export const statusDot = document.getElementById("statusDot");
 export const presenceEl = document.getElementById("presence");
 export const moveHintEl = document.getElementById("moveHint");
+export const toolbarEl = document.querySelector(".toolbar");
+export const modeSwitchEl = document.getElementById("modeSwitch");
+
+export function isTouchUi() {
+  return typeof window.matchMedia === "function" && window.matchMedia(TOUCH_UI_QUERY).matches;
+}
+
+// Space occupied by the bottom toolbar (and the move/draw switch beside it).
+export function chromeBottomInset() {
+  const viewportHeight = state.viewHeight || window.innerHeight;
+  let inset = 88;
+  if (toolbarEl) {
+    const rect = toolbarEl.getBoundingClientRect();
+    if (rect.height > 0) {
+      inset = Math.max(inset, Math.round(viewportHeight - rect.top + 10));
+    }
+  }
+  return inset;
+}
 
 export const gen = rough.generator();
 
@@ -97,6 +117,8 @@ export const state = {
   viewWidth: 0,
   viewHeight: 0,
   currentTool: "smart",
+  inputMode: "draw",
+  tapMoveTarget: null,
   activeDrag: null,
   selectedIds: [],
   avatarAnimationStart: 0,

@@ -1,7 +1,7 @@
 // Entry point: wires DOM controls, the toolbar, keyboard shortcuts, and canvas
 // pointer events to the feature modules, then runs the initial load/connect.
 
-import { canvas, controls, state } from "./state.js";
+import { canvas, controls, TOUCH_UI_QUERY, state } from "./state.js";
 import { clearSelection, load } from "./shapes.js";
 import { redraw, resize } from "./render.js";
 import { clearAll, redo, undo, updateHistoryButtons } from "./history.js";
@@ -13,6 +13,8 @@ import {
   handleMovementKey,
   onPointerDown,
   onPointerMove,
+  setInputMode,
+  syncInputModeUi,
   updateMovementHint
 } from "./input.js";
 import { avatarEditor } from "./avatar-editor.js";
@@ -41,6 +43,12 @@ document.querySelectorAll(".tool").forEach((button) => {
     });
 
     redraw();
+  });
+});
+
+document.querySelectorAll("[data-input-mode]").forEach((button) => {
+  button.addEventListener("click", () => {
+    setInputMode(button.dataset.inputMode);
   });
 });
 
@@ -95,6 +103,16 @@ canvas.addEventListener("pointercancel", cancelPointer);
 canvas.addEventListener("lostpointercapture", finishLostPointerCapture);
 
 window.addEventListener("resize", resize);
+window.visualViewport?.addEventListener("resize", resize);
+if (typeof window.matchMedia === "function") {
+  const touchUi = window.matchMedia(TOUCH_UI_QUERY);
+  const onTouchUiChange = () => syncInputModeUi();
+  if (typeof touchUi.addEventListener === "function") {
+    touchUi.addEventListener("change", onTouchUiChange);
+  } else if (typeof touchUi.addListener === "function") {
+    touchUi.addListener(onTouchUiChange);
+  }
+}
 
 if (document.fonts && document.fonts.load) {
   document.fonts.load("28px Excalifont")
@@ -103,6 +121,7 @@ if (document.fonts && document.fonts.load) {
 }
 
 refreshControlLabels();
+syncInputModeUi();
 load();
 loadPlayerState();
 updateMovementHint();
