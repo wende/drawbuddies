@@ -1,15 +1,8 @@
 import { bakeSprite, nineSlice, stats } from "../../app/rough-skin.js";
+import { applySlice } from "./primitives.js";
 
 const SLICE = 28;
 const TILE = 96;
-
-function applyNineSlice(el, image, slice) {
-  el.style.borderImageSource = image;
-  el.style.borderImageSlice = `${slice} fill`;
-  el.style.borderImageWidth = `${slice}px`;
-  el.style.borderImageRepeat = "stretch";
-  el.style.borderWidth = `${slice}px`;
-}
 
 export default {
   id: "windows",
@@ -37,7 +30,7 @@ export default {
     const slicePanel = document.createElement("div");
     slicePanel.className = "hud-window hud-window--slice";
     slicePanel.innerHTML = "<h3>9-slice</h3><p>Drag the corner. Corners stay put; edges stretch. One sprite, no resize listener.</p>";
-    applyNineSlice(slicePanel, sliced.image, sliced.slice);
+    applySlice(slicePanel, sliced.image, sliced.slice);
     sliceCol.append(slicePanel, ctx.caption(`${sliceCalls} rough call. Stretch is free.`));
 
     const regenCol = document.createElement("div");

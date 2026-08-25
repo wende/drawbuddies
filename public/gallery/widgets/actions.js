@@ -1,4 +1,5 @@
 import { registerSprite, skin } from "../../app/rough-skin.js";
+import { bindPress } from "./primitives.js";
 
 const LABELS = ["Draw", "Select", "Hand", "Text", "Imagine"];
 const DEMO = ["Draw", "Select", "Hand"];
@@ -23,15 +24,6 @@ const PRESS_OPTIONS = [
     blurb: "Press swaps to a same-seed hachure sprite. Sketchiest option; selected stays a quiet wash."
   }
 ];
-
-function bindPress(btn) {
-  const down = () => btn.classList.add("is-pressed");
-  const up = () => btn.classList.remove("is-pressed");
-  btn.addEventListener("pointerdown", down);
-  btn.addEventListener("pointerup", up);
-  btn.addEventListener("pointerleave", up);
-  btn.addEventListener("pointercancel", up);
-}
 
 function bindHatchSwap(btn, idleId, pressId) {
   const use = btn.querySelector("use");

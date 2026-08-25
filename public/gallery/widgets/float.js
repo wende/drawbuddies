@@ -1,14 +1,5 @@
 import { nineSlice, registerSprite, skin } from "../../app/rough-skin.js";
-
-function applySlice(el, image, slice) {
-  el.style.borderImageSource = image;
-  el.style.borderImageSlice = `${slice} fill`;
-  el.style.borderImageWidth = `${slice}px`;
-  el.style.borderImageRepeat = "stretch";
-  el.style.borderWidth = `${slice}px`;
-  el.style.borderStyle = "solid";
-  el.style.borderColor = "transparent";
-}
+import { applySlice, bindPress, skinnedButton } from "./primitives.js";
 
 function placeTip(stage, anchor, tip) {
   const stageBox = stage.getBoundingClientRect();
@@ -54,6 +45,7 @@ export default {
     anchor.className = "hud-anchor";
     anchor.textContent = "Hover the relic";
     skin(anchor, { id: anchorId, w: 160, h: 42, options: ctx.opts, seed: ctx.variant(0) });
+    bindPress(anchor);
 
     const tip = document.createElement("div");
     tip.className = "hud-tip";
@@ -89,13 +81,16 @@ export default {
     applySlice(menu, menuSlice.image, menuSlice.slice);
 
     ["Invite buddy", "Rename room", "Export board"].forEach((label, i) => {
-      const id = ctx.key(`menu-${i % ctx.seeds.length}`);
-      registerSprite(id, "rectangle", 180, 36, ctx.opts, ctx.variant(i));
-      const item = document.createElement("button");
-      item.type = "button";
-      item.textContent = label;
-      skin(item, { id, w: 180, h: 36, options: ctx.opts, seed: ctx.variant(i) });
-      menu.append(item);
+      menu.append(
+        skinnedButton(ctx, {
+          label,
+          prefix: "menu",
+          index: i,
+          w: 180,
+          h: 36,
+          className: "hud-btn"
+        })
+      );
     });
     menuCol.append(menu, ctx.caption("A tiny action menu. Rows are <use>, not new geometry."));
 

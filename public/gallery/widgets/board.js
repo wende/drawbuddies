@@ -208,8 +208,9 @@ function makeAvatarOverlay(ctx) {
       index: i,
       w: primary ? 96 : 78,
       h: 34,
-      className: primary ? "hud-btn hud-btn--compact is-picked" : "hud-btn hud-btn--compact"
+      picked: primary
     });
+    if (label === "Cancel" || label === "Okay") btn.dataset.action = "close";
     actions.append(btn);
   }
   panel.append(actions);
@@ -297,10 +298,11 @@ function makeRoomsOverlay(ctx) {
 
   const footer = document.createElement("div");
   footer.className = "hud-board-dialog-actions";
-  footer.append(
-    skinnedButton(ctx, { label: "← Lobby", prefix: "room-foot", index: 0, w: 96, h: 34 }),
-    skinnedButton(ctx, { label: "Close", prefix: "room-foot", index: 1, w: 80, h: 34 })
-  );
+  const lobbyBtn = skinnedButton(ctx, { label: "← Lobby", prefix: "room-foot", index: 0, w: 96, h: 34 });
+  lobbyBtn.dataset.action = "close";
+  const closeBtn = skinnedButton(ctx, { label: "Close", prefix: "room-foot", index: 1, w: 80, h: 34 });
+  closeBtn.dataset.action = "close";
+  footer.append(lobbyBtn, closeBtn);
   dialog.append(footer);
 
   overlay.append(dialog);
@@ -375,15 +377,11 @@ export default {
     });
     roomsBtn.addEventListener("click", () => show("rooms"));
     avatarBtn.addEventListener("click", () => show("avatar"));
-    for (const close of roomsOverlay.querySelectorAll("button")) {
-      if (close.textContent === "Close" || close.textContent === "← Lobby") {
-        close.addEventListener("click", () => show("board"));
-      }
+    for (const close of roomsOverlay.querySelectorAll('[data-action="close"]')) {
+      close.addEventListener("click", () => show("board"));
     }
-    for (const close of avatarOverlay.querySelectorAll("button")) {
-      if (close.textContent === "Cancel" || close.textContent === "Okay") {
-        close.addEventListener("click", () => show("board"));
-      }
+    for (const close of avatarOverlay.querySelectorAll('[data-action="close"]')) {
+      close.addEventListener("click", () => show("board"));
     }
 
     root.append(stage, modes);

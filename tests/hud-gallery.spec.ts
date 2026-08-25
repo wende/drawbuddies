@@ -171,6 +171,10 @@ test("board shell mirrors main chrome and swaps overlays", async ({ page }) => {
   await expect(board.locator(".hud-board-dialog--rooms")).toBeVisible();
   await board.locator(".hud-board-dialog--rooms input[type='text']").first().fill("sketch-club");
   await expect(board.locator(".hud-board-dialog--rooms input[type='text']").first()).toHaveValue("sketch-club");
+  await expect(board.locator('.hud-board-dialog--rooms [data-action="close"]')).toHaveCount(2);
+
+  await board.locator('.hud-board-dialog--rooms [data-action="close"]').last().click();
+  await expect(board.locator(".hud-board-toolbar")).toBeVisible();
 
   await page.locator('#sec-board .hud-board-modes .hud-btn[data-mode="board"]').click();
   await expect(board.locator(".hud-board-toolbar")).toBeVisible();

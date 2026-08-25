@@ -1,20 +1,4 @@
-import { nineSlice } from "../../app/rough-skin.js";
-
-function frame(el, ctx, seed) {
-  const { image, slice } = nineSlice(
-    96,
-    24,
-    { ...ctx.opts, fill: ctx.panelFill, fillStyle: "solid" },
-    seed
-  );
-  el.style.borderImageSource = image;
-  el.style.borderImageSlice = `${slice} fill`;
-  el.style.borderImageWidth = `${slice}px`;
-  el.style.borderImageRepeat = "stretch";
-  el.style.borderWidth = `${slice}px`;
-  el.style.borderStyle = "solid";
-  el.style.borderColor = "transparent";
-}
+import { framePanel } from "./primitives.js";
 
 export default {
   id: "compose",
@@ -37,7 +21,7 @@ export default {
     input.placeholder = "Scribbleton";
     input.autocomplete = "off";
     nameField.append(nameLabel, input);
-    frame(nameField, ctx, ctx.variant(0));
+    framePanel(nameField, ctx, ctx.variant(0), { size: 96, slice: 24 });
 
     const noteField = document.createElement("label");
     noteField.className = "hud-field";
@@ -48,7 +32,7 @@ export default {
     area.rows = 4;
     area.placeholder = "Leave a message for whoever joins next…";
     noteField.append(noteLabel, area);
-    frame(noteField, ctx, ctx.variant(1));
+    framePanel(noteField, ctx, ctx.variant(1), { size: 96, slice: 24 });
 
     list.append(nameField, noteField);
     root.append(list);
