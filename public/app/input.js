@@ -124,6 +124,11 @@ export function setInputMode(mode) {
     if (state.activeDrag && state.activeDrag.tool === "player-move") {
       state.activeDrag = null;
     }
+    if (movementFrameId !== null) {
+      cancelAnimationFrame(movementFrameId);
+      movementFrameId = null;
+    }
+    if (state.localPlayer.moving) stopMoving(true);
   }
   syncInputModeUi();
   redraw();
