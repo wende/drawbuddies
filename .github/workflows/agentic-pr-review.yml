@@ -1,8 +1,9 @@
 name: Agentic PR Review
 
 on:
-  # Review same-repository PRs automatically, including drafts. Every push
-  # emits `synchronize`, and the concurrency group cancels an obsolete run.
+  # Review same-repository PRs automatically. Drafts are skipped until they
+  # are marked ready (`ready_for_review`). Every push emits `synchronize`, and
+  # the concurrency group cancels an obsolete run.
   # Fork PRs are skipped because `pull_request` does not expose model secrets.
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
@@ -20,6 +21,7 @@ jobs:
   review:
     name: Agentic Review
     if: >-
+      github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 35
