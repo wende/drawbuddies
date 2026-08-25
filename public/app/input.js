@@ -119,8 +119,11 @@ export function syncInputModeUi() {
 
 export function setInputMode(mode) {
   state.inputMode = mode === "move" ? "move" : "draw";
-  if (!isPlayerMoveMode() && state.activeDrag && state.activeDrag.tool === "player-move") {
-    state.activeDrag = null;
+  if (!isPlayerMoveMode()) {
+    state.tapMoveTarget = null;
+    if (state.activeDrag && state.activeDrag.tool === "player-move") {
+      state.activeDrag = null;
+    }
   }
   syncInputModeUi();
   redraw();

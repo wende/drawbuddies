@@ -158,45 +158,85 @@ function toolAtPointer(clientX, clientY) {
   return TOOL_WHEEL_ITEMS[index];
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svgEl(name, attrs = {}, text = null) {
+  const node = document.createElementNS(SVG_NS, name);
+  for (const [key, value] of Object.entries(attrs)) {
+    node.setAttribute(key, String(value));
+  }
+  if (text !== null) node.textContent = text;
+  return node;
+}
+
 function renderWheel() {
   const el = ensureWheel();
   if (!layout) return;
 
   const { cx, cy, inner, outer } = layout;
   const sliceAngle = TOOL_SWEEP / TOOL_WHEEL_ITEMS.length;
-  const parts = [];
-
-  parts.push(
-    `<svg class="tool-wheel-svg" width="${layout.viewW}" height="${layout.viewH}" viewBox="0 0 ${layout.viewW} ${layout.viewH}" data-cx="${cx.toFixed(1)}" data-cy="${cy.toFixed(1)}">`
-  );
+  const svg = svgEl("svg", {
+    class: "tool-wheel-svg",
+    width: layout.viewW,
+    height: layout.viewH,
+    viewBox: `0 0 ${layout.viewW} ${layout.viewH}`,
+    "data-cx": cx.toFixed(1),
+    "data-cy": cy.toFixed(1)
+  });
 
   TOOL_WHEEL_ITEMS.forEach((item, index) => {
     const a0 = TOOL_START + index * sliceAngle;
     const a1 = a0 + sliceAngle;
     const mid = a0 + sliceAngle / 2;
     const label = polar(cx, cy, LABEL_RADIUS, mid);
-    const active = item.tool === state.currentTool;
     const hovered = hoverTool === item.tool;
-    const cls = ["tool-wheel-slice"];
-    if (active) cls.push("is-current");
-    if (hovered) cls.push("is-hover");
-    parts.push(
-      `<path class="${cls.join(" ")}" data-tool="${item.tool}" d="${donutSlicePath(cx, cy, inner, outer, a0, a1)}"></path>`
-    );
-    parts.push(
-      `<text class="tool-wheel-label${hovered ? " is-hover" : ""}" data-tool="${item.tool}" x="${label.x.toFixed(1)}" y="${label.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${item.label}</text>`
+    const sliceClass = ["tool-wheel-slice"];
+    if (item.tool === state.currentTool) sliceClass.push("is-current");
+    if (hovered) sliceClass.push("is-hover");
+    svg.append(
+      svgEl("path", {
+        class: sliceClass.join(" "),
+        "data-tool": item.tool,
+        d: donutSlicePath(cx, cy, inner, outer, a0, a1)
+      }),
+      svgEl(
+        "text",
+        {
+          class: `tool-wheel-label${hovered ? " is-hover" : ""}`,
+          "data-tool": item.tool,
+          x: label.x.toFixed(1),
+          y: label.y.toFixed(1),
+          "text-anchor": "middle",
+          "dominant-baseline": "middle"
+        },
+        item.label
+      )
     );
   });
 
   const hub = hoverTool
     ? TOOL_WHEEL_ITEMS.find((item) => item.tool === hoverTool)?.label || "Tools"
     : "Tools";
-  parts.push(`<circle class="tool-wheel-hub" cx="${cx}" cy="${cy}" r="${inner - 2}"></circle>`);
-  parts.push(
-    `<text class="tool-wheel-hub-label" x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle">${hub}</text>`
+  svg.append(
+    svgEl("circle", {
+      class: "tool-wheel-hub",
+      cx,
+      cy,
+      r: inner - 2
+    }),
+    svgEl(
+      "text",
+      {
+        class: "tool-wheel-hub-label",
+        x: cx,
+        y: cy,
+        "text-anchor": "middle",
+        "dominant-baseline": "middle"
+      },
+      hub
+    )
   );
-  parts.push("</svg>");
-  el.innerHTML = parts.join("");
+  el.replaceChildren(svg);
 }
 
 function openWheel() {
@@ -420,10 +460,21 @@ export function bindPointerGestures(handlers) {
     modeSwitchEl.addEventListener("pointermove", onTogglePointerMove);
     modeSwitchEl.addEventListener("pointerup", onTogglePointerUp);
     modeSwitchEl.addEventListener("pointercancel", onTogglePointerCancel);
+    modeSwitchEl.setAttribute("aria-controls", "toolWheel");
     modeSwitchEl.addEventListener("contextmenu", (event) => event.preventDefault());
     modeSwitchEl.addEventListener("click", (event) => {
+      // Pointer tap/long-press is handled by onTogglePointerDown/Up.
+      // Keyboard Enter/Space synthesizes a click with detail 0; let keydown
+      // own that path so we do not double-toggle.
+      if (event.detail > 0 || event.pointerType) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+    modeSwitchEl.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      event.stopPropagation();
+      toggleWalkMode();
     });
   }
 

@@ -126,6 +126,33 @@ test.describe("mobile tap-to-move", () => {
     await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
   });
 
+  test("Space on the walk switch toggles walk mode", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await page.locator("#modeSwitch").focus();
+    await page.keyboard.press("Space");
+    await expect(page.locator("#modeSwitch")).toHaveClass(/active/);
+    await expect(page.locator("body")).toHaveClass(/player-move-mode/);
+
+    await page.keyboard.press("Space");
+    await expect(page.locator("#modeSwitch")).not.toHaveClass(/active/);
+  });
+
+  test("turning walk off cancels an in-flight tap-to-move", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await page.locator("#modeSwitch").click();
+    await page.mouse.click(40, 120);
+    await page.locator("#modeSwitch").click();
+    await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
+
+    const stopped = await playerPoint(page);
+    await page.waitForTimeout(350);
+    const later = await playerPoint(page);
+    expect(Math.abs((later.x ?? 0) - (stopped.x ?? 0))).toBeLessThan(2);
+    expect(Math.abs((later.y ?? 0) - (stopped.y ?? 0))).toBeLessThan(2);
+  });
+
   test("long-pressing the walk switch still opens the tool wheel", async ({ page }) => {
     await openMobileCanvas(page);
 
