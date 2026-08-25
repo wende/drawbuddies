@@ -121,6 +121,7 @@ export function canStoreRotation(shape) {
     shape.type === "rectangle" ||
     shape.type === "ellipse" ||
     shape.type === "text" ||
+    shape.type === "path" ||
     shape.type === "group"
   );
 }

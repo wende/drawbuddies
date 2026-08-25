@@ -53,6 +53,7 @@ import { redraw } from "./render.js";
 import { openImaginePrompt } from "./imagine.js";
 import { openTextEditor } from "./text-editor.js";
 import { avatarEditor } from "./avatar-editor.js";
+import { dropWorldShapesOnGallery, galleryHitTest, isGalleryEditorOpen, setGalleryReceptive } from "./gallery.js";
 
 let movementFrameId = null;
 let lastMoveTimestamp = 0;
@@ -167,7 +168,7 @@ function scheduleMovement() {
 
 export function handleMovementKey(event, isDown) {
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
-  if (avatarEditor.isOpen()) return false;
+  if (avatarEditor.isOpen() || isGalleryEditorOpen()) return false;
   if (isEditableTarget(event.target)) return false;
 
   const key = event.key.toLowerCase();
@@ -320,6 +321,7 @@ export function onPointerDown(event) {
     };
 
     document.body.classList.add("dragging-shape");
+    setGalleryReceptive(true, event.clientX, event.clientY);
     return;
   }
 
@@ -380,6 +382,7 @@ export function onPointerMove(event) {
     }
 
     redraw();
+    setGalleryReceptive(true, event.clientX, event.clientY);
     return;
   }
 
@@ -459,11 +462,17 @@ function completePointer(event, { captureFinalPoint = true, releaseCapture = tru
   if (drag.tool === "hand") {
     const moved = drag.moved;
     const dragShapes = drag.dragShapes;
+    const droppedOnGallery = moved && galleryHitTest(event.clientX, event.clientY);
+    setGalleryReceptive(false);
     const tw = 68, th = 78;
     const trashBounds = { x: 24, y: state.viewHeight - th - 88, width: tw, height: th };
     const screenCurrent = worldToScreen(drag.current);
     const droppedOnTrash = moved && isOverBounds(screenCurrent, trashBounds);
     document.body.classList.remove("dragging-shape");
+    if (droppedOnGallery) {
+      dropWorldShapesOnGallery(drag);
+      return;
+    }
     if (droppedOnTrash) {
       for (const shape of dragShapes) {
         const idx = state.shapes.indexOf(shape);
@@ -552,5 +561,6 @@ export function cancelPointer(event) {
 
   state.activeDrag = null;
   document.body.classList.remove("dragging-shape");
+  setGalleryReceptive(false);
   redraw();
 }
