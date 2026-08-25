@@ -1,0 +1,12 @@
+src/
+tests/
+docs/
+.github/
+.claude/
+node_modules/
+test-results/
+playwright-report/
+wrangler.jsonc
+playwright.config.ts
+tsconfig.json
+*.md
