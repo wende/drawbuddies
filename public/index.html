@@ -675,7 +675,7 @@
 
       .toolbar {
         left: max(10px, env(safe-area-inset-left, 0px));
-        right: calc(104px + env(safe-area-inset-right, 0px));
+        right: calc(156px + env(safe-area-inset-right, 0px));
         bottom: max(10px, env(safe-area-inset-bottom, 0px));
         transform: none;
         max-width: none;
@@ -686,23 +686,22 @@
       .toolbar {
         bottom: max(10px, env(safe-area-inset-bottom, 0px));
         justify-content: flex-start;
+        align-items: center;
         overflow-x: auto;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         border-radius: 14px;
         gap: 6px;
-        padding: 8px;
-        -webkit-overflow-scrolling: touch;
-      }
-
-      .toolbar > .group:first-child {
-        flex: 1 1 100%;
-        overflow-x: auto;
+        padding: 6px;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
       }
 
-      .toolbar > .group:first-child::-webkit-scrollbar {
+      .toolbar::-webkit-scrollbar {
         display: none;
+      }
+
+      .toolbar > .group:first-child {
+        flex: 0 0 auto;
       }
 
       .group {
@@ -715,8 +714,8 @@
 
       button {
         height: 40px;
-        padding: 0 12px;
-        font-size: 14px;
+        padding: 0 10px;
+        font-size: 13px;
       }
 
       input[type="color"] {
@@ -725,13 +724,12 @@
       }
 
       .toolbar label {
-        font-size: 11px;
+        font-size: 0;
         gap: 4px;
       }
 
       .toolbar .value {
-        min-width: 1.8em;
-        font-size: 11px;
+        display: none;
       }
 
       .hint {
