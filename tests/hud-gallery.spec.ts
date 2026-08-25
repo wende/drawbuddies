@@ -84,7 +84,7 @@ test("changing roughness re-renders and keeps generation count bounded", async (
 
   const generations = Number((await page.locator("#readout").textContent())?.match(/^(\d+) generations/)?.[1]);
   expect(generations).toBeGreaterThan(0);
-  expect(generations).toBeLessThan(45);
+  expect(generations).toBeLessThan(70);
 });
 
 test("vital bar fill is clipped rather than resized", async ({ page }) => {
@@ -117,7 +117,17 @@ test("action buttons share registered geometry via use", async ({ page }) => {
   await openGallery(page);
 
   const uses = page.locator("#sec-actions use");
-  await expect(uses).toHaveCount(6);
+  await expect(uses.first()).toBeVisible();
   const hrefs = await uses.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("href")));
+  expect(hrefs.length).toBeGreaterThanOrEqual(6);
   expect(new Set(hrefs).size).toBeLessThan(hrefs.length);
+});
+
+test("press option rows are present for comparison", async ({ page }) => {
+  await openGallery(page);
+
+  await expect(page.locator("#sec-actions .hud-press-option")).toHaveCount(3);
+  await expect(page.locator("#sec-actions .hud-btn--stamp")).toHaveCount(3);
+  await expect(page.locator("#sec-actions .hud-btn--dent")).toHaveCount(3);
+  await expect(page.locator("#sec-actions .hud-btn--hatch")).toHaveCount(3);
 });

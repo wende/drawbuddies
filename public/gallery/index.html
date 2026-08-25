@@ -286,6 +286,58 @@
       --skin-fill: transparent;
     }
 
+    /* Press style candidates — compare side by side in Action buttons. */
+    .hud-btn--stamp:hover { --skin-fill: rgba(36, 31, 24, 0.1); }
+    .hud-btn--stamp:active,
+    .hud-btn--stamp.is-pressed {
+      color: var(--paper);
+      --skin-fill: var(--ink);
+    }
+    .hud-btn--stamp.is-picked:not(:active):not(.is-pressed) {
+      color: var(--accent);
+      --skin-fill: rgba(138, 59, 36, 0.18);
+    }
+
+    .hud-btn--dent {
+      transition: transform 80ms ease, color 80ms ease;
+    }
+    .hud-btn--dent:hover { --skin-fill: rgba(138, 59, 36, 0.14); }
+    .hud-btn--dent:active,
+    .hud-btn--dent.is-pressed {
+      transform: translateY(2px) scale(0.985);
+      --skin-fill: rgba(138, 59, 36, 0.42);
+      color: var(--accent);
+    }
+    .hud-btn--dent:active .skin-svg,
+    .hud-btn--dent.is-pressed .skin-svg {
+      filter: drop-shadow(0 1px 0 rgba(36, 31, 24, 0.35));
+    }
+
+    .hud-btn--hatch:hover { --skin-fill: rgba(138, 59, 36, 0.1); }
+    .hud-btn--hatch:active,
+    .hud-btn--hatch.is-pressed {
+      color: var(--accent);
+      --skin-fill: rgba(138, 59, 36, 0.22);
+    }
+
+    .hud-press-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 4px;
+    }
+
+    .hud-press-option {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hud-press-option strong {
+      font-size: 13px;
+      font-weight: 400;
+    }
+
     .hud-toolbar {
       display: flex;
       flex-wrap: wrap;

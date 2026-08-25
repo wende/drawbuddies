@@ -1,6 +1,100 @@
 import { registerSprite, skin } from "../../app/rough-skin.js";
 
 const LABELS = ["Draw", "Select", "Hand", "Text", "Imagine"];
+const DEMO = ["Draw", "Select", "Hand"];
+
+const PRESS_OPTIONS = [
+  {
+    id: "stamp",
+    title: "1. Ink stamp",
+    className: "hud-btn--stamp",
+    blurb: "Press fills solid ink and flips the label to paper. Loud, unmistakable."
+  },
+  {
+    id: "dent",
+    title: "2. Pressed dent",
+    className: "hud-btn--dent",
+    blurb: "Press drops the button 2px, darkens the wash, and accents the label. Familiar physical click."
+  },
+  {
+    id: "hatch",
+    title: "3. Hachure flash",
+    className: "hud-btn--hatch",
+    blurb: "Press swaps to a same-seed hachure sprite. Sketchiest option; selected stays a quiet wash."
+  }
+];
+
+function bindPress(btn) {
+  const down = () => btn.classList.add("is-pressed");
+  const up = () => btn.classList.remove("is-pressed");
+  btn.addEventListener("pointerdown", down);
+  btn.addEventListener("pointerup", up);
+  btn.addEventListener("pointerleave", up);
+  btn.addEventListener("pointercancel", up);
+}
+
+function bindHatchSwap(btn, idleId, pressId) {
+  const use = btn.querySelector("use");
+  if (!use) return;
+  const down = () => {
+    btn.classList.add("is-pressed");
+    use.setAttribute("href", `#${pressId}`);
+  };
+  const up = () => {
+    btn.classList.remove("is-pressed");
+    use.setAttribute("href", `#${idleId}`);
+  };
+  btn.addEventListener("pointerdown", down);
+  btn.addEventListener("pointerup", up);
+  btn.addEventListener("pointerleave", up);
+  btn.addEventListener("pointercancel", up);
+}
+
+function makeToolbar(labels, { ctx, className, prefix, hatch = false, pickable = false }) {
+  const row = document.createElement("div");
+  row.className = "hud-toolbar";
+
+  labels.forEach((label, i) => {
+    const seed = ctx.variant(i);
+    const idleId = ctx.key(`${prefix}-${i % ctx.seeds.length}`);
+    registerSprite(idleId, "rectangle", 148, 42, ctx.opts, seed);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `hud-btn ${className}`.trim();
+    btn.textContent = label;
+    if (pickable && i === 0) btn.classList.add("is-picked");
+    if (label === "Imagine") btn.disabled = true;
+    skin(btn, { id: idleId, w: 148, h: 42, options: ctx.opts, seed });
+
+    if (hatch) {
+      const pressId = ctx.key(`${prefix}-hatch-${i % ctx.seeds.length}`);
+      registerSprite(
+        pressId,
+        "rectangle",
+        148,
+        42,
+        { ...ctx.opts, fill: ctx.ink, fillStyle: "hachure", fillWeight: 1.2, hachureGap: 4 },
+        seed
+      );
+      bindHatchSwap(btn, idleId, pressId);
+    } else {
+      bindPress(btn);
+    }
+
+    if (pickable) {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        for (const other of row.querySelectorAll(".hud-btn")) other.classList.remove("is-picked");
+        btn.classList.add("is-picked");
+      });
+    }
+
+    row.append(btn);
+  });
+
+  return row;
+}
 
 export default {
   id: "actions",
@@ -10,30 +104,43 @@ export default {
     "Hover, press, selected, and disabled are paint-only. Geometry is registered once " +
     "per seed variant; every button is a <use> of that sprite. State never re-rolls the wobble.",
   render(root, ctx) {
-    const row = document.createElement("div");
-    row.className = "hud-toolbar";
+    root.append(
+      makeToolbar(LABELS, {
+        ctx,
+        className: "",
+        prefix: "btn",
+        pickable: true
+      })
+    );
+    root.append(ctx.caption("Baseline: press only darkens the wash. Easy to miss next to selected."));
 
-    LABELS.forEach((label, i) => {
-      const id = ctx.key(`btn-${i % ctx.seeds.length}`);
-      registerSprite(id, "rectangle", 148, 42, ctx.opts, ctx.variant(i));
+    root.append(ctx.subhead("Press options — hold each row and compare"));
 
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "hud-btn";
-      btn.textContent = label;
-      if (i === 0) btn.classList.add("is-picked");
-      if (label === "Imagine") btn.disabled = true;
-      skin(btn, { id, w: 148, h: 42, options: ctx.opts, seed: ctx.variant(i) });
-      btn.addEventListener("click", () => {
-        if (btn.disabled) return;
-        for (const other of row.querySelectorAll(".hud-btn")) other.classList.remove("is-picked");
-        btn.classList.add("is-picked");
-      });
-      row.append(btn);
-    });
+    const grid = document.createElement("div");
+    grid.className = "hud-press-grid";
 
-    root.append(row);
-    root.append(ctx.caption("Selected tool keeps the same seed; only --skin-fill and color change."));
+    for (const option of PRESS_OPTIONS) {
+      const block = document.createElement("div");
+      block.className = "hud-press-option";
+
+      const title = document.createElement("strong");
+      title.textContent = option.title;
+      block.append(title);
+
+      block.append(
+        makeToolbar(DEMO, {
+          ctx,
+          className: option.className,
+          prefix: `press-${option.id}`,
+          hatch: option.id === "hatch",
+          pickable: true
+        })
+      );
+      block.append(ctx.caption(option.blurb));
+      grid.append(block);
+    }
+
+    root.append(grid);
 
     const live = document.createElement("h3");
     live.className = "hud-subhead";
