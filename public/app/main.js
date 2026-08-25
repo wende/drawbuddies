@@ -1,8 +1,8 @@
 // Entry point: wires DOM controls, the toolbar, keyboard shortcuts, and canvas
 // pointer events to the feature modules, then runs the initial load/connect.
 
-import { canvas, controls, TOUCH_UI_QUERY, state } from "./state.js";
-import { clearSelection, load } from "./shapes.js";
+import { canvas, controls, TOUCH_UI_QUERY } from "./state.js";
+import { load } from "./shapes.js";
 import { redraw, resize } from "./render.js";
 import { clearAll, redo, undo, updateHistoryButtons } from "./history.js";
 import { loadPlayerState, net } from "./net.js";
@@ -13,12 +13,12 @@ import {
   handleMovementKey,
   onPointerDown,
   onPointerMove,
-  setInputMode,
   syncInputModeUi,
   updateMovementHint
 } from "./input.js";
 import { avatarEditor } from "./avatar-editor.js";
 import { rooms } from "./rooms.js";
+import { bindModeToggle, selectTool } from "./tool-wheel.js";
 
 function refreshControlLabels() {
   controls.roughnessValue.textContent = Number(controls.roughness.value).toFixed(1);
@@ -28,29 +28,11 @@ function refreshControlLabels() {
 
 document.querySelectorAll(".tool").forEach((button) => {
   button.addEventListener("click", () => {
-    state.currentTool = button.dataset.tool;
-    if (state.currentTool === "smart") {
-      clearSelection();
-    }
-    document.body.classList.toggle("hand-mode", state.currentTool === "hand");
-    document.body.classList.toggle("text-mode", state.currentTool === "text");
-    document.body.classList.toggle("select-mode", state.currentTool === "select");
-    document.body.classList.toggle("scale-mode", state.currentTool === "scale");
-    document.body.classList.toggle("rotate-mode", state.currentTool === "rotate");
-
-    document.querySelectorAll(".tool").forEach((b) => {
-      b.classList.toggle("active", b === button);
-    });
-
-    redraw();
+    selectTool(button.dataset.tool);
   });
 });
 
-document.querySelectorAll("[data-input-mode]").forEach((button) => {
-  button.addEventListener("click", () => {
-    setInputMode(button.dataset.inputMode);
-  });
-});
+bindModeToggle();
 
 [
   controls.roughness,

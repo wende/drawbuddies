@@ -7,6 +7,7 @@ import {
   canvas,
   chromeBottomInset,
   isTouchUi,
+  modeSwitchEl,
   MOVE_HINT_KEY,
   moveHintEl,
   newSeed,
@@ -110,11 +111,10 @@ function hideMovementHint() {
 export function syncInputModeUi() {
   document.body.classList.toggle("touch-ui", isTouchUi());
   document.body.classList.toggle("player-move-mode", isPlayerMoveMode());
-  document.querySelectorAll("[data-input-mode]").forEach((button) => {
-    const active = button.dataset.inputMode === state.inputMode;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
+  if (modeSwitchEl) {
+    modeSwitchEl.classList.toggle("active", isPlayerMoveMode());
+    modeSwitchEl.setAttribute("aria-pressed", String(isPlayerMoveMode()));
+  }
 }
 
 export function setInputMode(mode) {

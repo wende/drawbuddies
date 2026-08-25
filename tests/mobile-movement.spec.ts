@@ -33,13 +33,24 @@ async function drawStroke(page: Page, points: Point[]) {
   await page.mouse.up();
 }
 
+async function pressMoveToggle(page: Page, holdMs = 0) {
+  const box = await page.locator("#modeSwitch").boundingBox();
+  if (!box) throw new Error("Move toggle not found");
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  if (holdMs) await page.waitForTimeout(holdMs);
+  return { x, y };
+}
+
 test.describe("mobile tap-to-move", () => {
   test.use({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
   });
 
-  test("shows a move/draw switch and walks to a tap in Move mode", async ({ page }) => {
+  test("shows a Move toggle and walks to a tap when it is on", async ({ page }) => {
     await openMobileCanvas(page);
 
     const modeSwitch = page.locator("#modeSwitch");
@@ -49,8 +60,8 @@ test.describe("mobile tap-to-move", () => {
     const start = await playerPoint(page);
     expect(start.x).toBeGreaterThan(0);
 
-    await page.locator("#modeSwitch [data-input-mode='move']").click();
-    await expect(page.locator("#modeSwitch [data-input-mode='move']")).toHaveClass(/active/);
+    await modeSwitch.click();
+    await expect(modeSwitch).toHaveClass(/active/);
     await expect(page.locator("body")).toHaveClass(/player-move-mode/);
 
     await page.mouse.click(310, 360);
@@ -65,7 +76,7 @@ test.describe("mobile tap-to-move", () => {
   test("Draw mode still sketches and does not walk the player", async ({ page }) => {
     await openMobileCanvas(page);
 
-    await expect(page.locator("#modeSwitch [data-input-mode='draw']")).toHaveClass(/active/);
+    await expect(page.locator("#modeSwitch")).not.toHaveClass(/active/);
 
     const start = await playerPoint(page);
 
@@ -81,12 +92,12 @@ test.describe("mobile tap-to-move", () => {
     expect(Math.abs((after.y ?? 0) - (start.y ?? 0))).toBeLessThan(2);
   });
 
-  test("switching back to Draw lets the current tool draw again", async ({ page }) => {
+  test("toggling Move off lets the current tool draw again", async ({ page }) => {
     await openMobileCanvas(page);
 
-    await page.locator("#modeSwitch [data-input-mode='move']").click();
+    await page.locator("#modeSwitch").click();
     await page.mouse.click(300, 300);
-    await page.locator("#modeSwitch [data-input-mode='draw']").click();
+    await page.locator("#modeSwitch").click();
     await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
 
     await drawStroke(page, [
@@ -96,6 +107,36 @@ test.describe("mobile tap-to-move", () => {
 
     await expect.poll(async () => storedShapeCount(page)).toBe(1);
   });
+
+  test("long-pressing Move opens a pizza-slice tool wheel", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await pressMoveToggle(page, 500);
+    await expect(page.locator("#toolWheel")).toBeVisible();
+    await expect(page.locator("#toolWheel [data-tool='smart']").first()).toBeVisible();
+    await expect(page.locator("#toolWheel [data-tool='imagine']").first()).toBeVisible();
+    await expect(page.locator("#toolWheel [data-tool='select']").first()).toBeVisible();
+    await page.mouse.up();
+    await expect(page.locator("#toolWheel")).toBeHidden();
+    await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
+  });
+
+  test("dragging to a pizza slice selects that toolbar tool", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await pressMoveToggle(page, 500);
+    await expect(page.locator("#toolWheel")).toBeVisible();
+
+    const label = page.locator("#toolWheel text.tool-wheel-label[data-tool='imagine']");
+    const box = await label.boundingBox();
+    if (!box) throw new Error("Imagine slice label missing");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(page.locator("#toolWheel")).toBeHidden();
+    await expect(page.locator('button.tool[data-tool="imagine"]')).toHaveClass(/active/);
+    await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
+  });
 });
 
 test.describe("desktop chrome", () => {
@@ -103,7 +144,7 @@ test.describe("desktop chrome", () => {
     viewport: { width: 900, height: 700 },
   });
 
-  test("hides the move/draw switch on a desktop viewport", async ({ page }) => {
+  test("hides the Move toggle on a desktop viewport", async ({ page }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/", { waitUntil: "load" });
     await expect(page.locator("#modeSwitch")).toBeHidden();
