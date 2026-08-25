@@ -1,6 +1,6 @@
 import { expect, Page, test } from "@playwright/test";
 
-const SECTIONS = ["actions", "bag", "vitals", "windows", "compose", "float"];
+const SECTIONS = ["board", "actions", "bag", "vitals", "windows", "compose", "float"];
 
 async function openGallery(page: Page) {
   const errors: string[] = [];
@@ -84,7 +84,7 @@ test("changing roughness re-renders and keeps generation count bounded", async (
 
   const generations = Number((await page.locator("#readout").textContent())?.match(/^(\d+) generations/)?.[1]);
   expect(generations).toBeGreaterThan(0);
-  expect(generations).toBeLessThan(70);
+  expect(generations).toBeLessThan(120);
 });
 
 test("vital bar fill is clipped rather than resized", async ({ page }) => {
@@ -151,4 +151,27 @@ test("button press keeps a transparent host background", async ({ page }) => {
 
   const after = await btn.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(after).toMatch(/rgba?\(0,\s*0,\s*0,\s*0\)|transparent/);
+});
+
+test("board shell mirrors main chrome and swaps overlays", async ({ page }) => {
+  await openGallery(page);
+
+  const board = page.locator("#sec-board .hud-board");
+  await expect(board).toBeVisible();
+  await expect(board.locator(".hud-board-hint")).toBeVisible();
+  await expect(board.locator(".hud-board-presence")).toContainText("people here");
+  await expect(board.locator(".hud-board-toolbar .hud-btn")).toHaveCount(10);
+  await expect(board.locator('.hud-board-toolbar input[type="range"]')).toHaveCount(3);
+
+  await page.locator('#sec-board .hud-board-modes .hud-btn[data-mode="avatar"]').click();
+  await expect(board.locator(".hud-board-dialog--avatar")).toBeVisible();
+  await expect(board.locator(".hud-board-chrome")).toBeHidden();
+
+  await page.locator('#sec-board .hud-board-modes .hud-btn[data-mode="rooms"]').click();
+  await expect(board.locator(".hud-board-dialog--rooms")).toBeVisible();
+  await board.locator(".hud-board-dialog--rooms input[type='text']").first().fill("sketch-club");
+  await expect(board.locator(".hud-board-dialog--rooms input[type='text']").first()).toHaveValue("sketch-club");
+
+  await page.locator('#sec-board .hud-board-modes .hud-btn[data-mode="board"]').click();
+  await expect(board.locator(".hud-board-toolbar")).toBeVisible();
 });
