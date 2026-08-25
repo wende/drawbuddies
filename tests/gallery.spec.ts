@@ -25,8 +25,8 @@ const RECTANGLE: ShapeData = {
   geom: { x1: 200, y1: 200, x2: 300, y2: 260 },
   options: {
     stroke: "#222222",
-    fill: null,
-    fillStyle: "hachure",
+    fill: "#ffe08a",
+    fillStyle: "solid",
     roughness: 1.5,
     bowing: 1,
     strokeWidth: 2,
@@ -78,6 +78,14 @@ async function openCanvas(page: Page, extra?: { shapes?: ShapeData[]; gallery?: 
   await page.waitForSelector("#canvas");
 }
 
+async function openGallery(page: Page) {
+  await page.click("#galleryBtn");
+  await expect(page.locator("#galleryPanel")).toHaveClass(/is-open/);
+  await expect
+    .poll(async () => (await page.locator("#galleryPanel").boundingBox())?.x ?? 9999)
+    .toBeLessThan(720);
+}
+
 async function drag(page: Page, from: [number, number], to: [number, number]) {
   await page.mouse.move(from[0], from[1]);
   await page.mouse.down();
@@ -103,16 +111,14 @@ async function storedWorldShapes(page: Page) {
 test("gallery panel opens from the top bar", async ({ page }) => {
   await openCanvas(page);
   await expect(page.locator("#galleryPanel")).not.toHaveClass(/is-open/);
-  await page.click("#galleryBtn");
-  await expect(page.locator("#galleryPanel")).toHaveClass(/is-open/);
+  await openGallery(page);
   await expect(page.locator("#galleryEmpty")).toBeVisible();
   await expect(page.locator(".gallery-slot-add")).toHaveCount(1);
 });
 
 test("dragging a world shape into the gallery opens the editor and saves a named item", async ({ page }) => {
   await openCanvas(page, { shapes: [RECTANGLE] });
-  await page.click("#galleryBtn");
-  await expect(page.locator("#galleryPanel")).toHaveClass(/is-open/);
+  await openGallery(page);
 
   await page.click('button[data-tool="hand"]');
   const panel = page.locator("#galleryPanel");
@@ -142,7 +148,7 @@ test("dragging a world shape into the gallery opens the editor and saves a named
 
 test("clicking a gallery item opens the editor so it can be renamed or removed", async ({ page }) => {
   await openCanvas(page, { gallery: galleryStore("Lantern") });
-  await page.click("#galleryBtn");
+  await openGallery(page);
   await page.click(".gallery-item .gallery-slot");
 
   await expect(page.locator("#galleryEditorOverlay")).toBeVisible();
@@ -161,7 +167,7 @@ test("clicking a gallery item opens the editor so it can be renamed or removed",
 
 test("dragging a gallery item into the world stamps a group that can be scaled", async ({ page }) => {
   await openCanvas(page, { gallery: galleryStore("Box") });
-  await page.click("#galleryBtn");
+  await openGallery(page);
 
   const slot = page.locator(".gallery-item .gallery-slot");
   const slotBox = await slot.boundingBox();

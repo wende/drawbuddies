@@ -361,6 +361,10 @@ export function setGalleryReceptive(on, clientX, clientY) {
   return hovering;
 }
 
+export function bindGalleryEditor(api) {
+  editorApi = api;
+}
+
 export function isGalleryEditorOpen() {
   return Boolean(editorApi && editorApi.isOpen && editorApi.isOpen());
 }
