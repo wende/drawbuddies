@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DrawBuddies — Screen-space HUD</title>
+  <link rel="preload" href="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+  <style>
+    @font-face {
+      font-family: "Excalifont";
+      src: url("https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @property --pct {
+      syntax: "<percentage>";
+      inherits: false;
+      initial-value: 0%;
+    }
+
+    :root {
+      --paper: #f7f1e4;
+      --ink: #241f18;
+      --wash: rgba(255, 250, 240, 0.82);
+      --rule: rgba(36, 31, 24, 0.14);
+      --quiet: rgba(36, 31, 24, 0.58);
+      --accent: #8a3b24;
+      --mana: #2f5f8a;
+      --stamina: #3f6d3a;
+      --xp: #b8860b;
+      color-scheme: light;
+    }
+
+    :root.dark {
+      --paper: #1c1a17;
+      --ink: #f0ead8;
+      --wash: rgba(36, 33, 28, 0.88);
+      --rule: rgba(240, 234, 216, 0.16);
+      --quiet: rgba(240, 234, 216, 0.58);
+      --accent: #e08b6d;
+      --mana: #8fb6f0;
+      --stamina: #8fbf7a;
+      --xp: #e0c060;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 12% 0%, rgba(255,255,255,0.45), transparent 28rem),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 27px,
+          rgba(36, 31, 24, 0.035) 28px
+        ),
+        var(--paper);
+      color: var(--ink);
+      font-family: "Excalifont", ui-sans-serif, system-ui, sans-serif;
+      font-size: 15px;
+    }
+
+    .hud-top {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      gap: 18px;
+      padding: 16px 28px 14px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--wash);
+      backdrop-filter: blur(14px);
+    }
+
+    .hud-brand h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+
+    .hud-brand p {
+      margin: 4px 0 0;
+      max-width: 62ch;
+      color: var(--quiet);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .hud-brand a { color: var(--accent); }
+
+    .hud-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+      align-content: start;
+    }
+
+    .hud-ctrl label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--quiet);
+      font-size: 11.5px;
+    }
+
+    .hud-ctrl input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .hud-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      grid-column: 1 / -1;
+    }
+
+    .hud-actions button {
+      padding: 5px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .hud-actions button:hover { border-color: var(--ink); }
+
+    #readout {
+      grid-column: 1 / -1;
+      color: var(--quiet);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+    }
+
+    .hud-page {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 8px 28px;
+      padding: 28px 28px 96px;
+      max-width: 1180px;
+    }
+
+    #nav {
+      position: sticky;
+      top: 132px;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #nav a {
+      color: var(--quiet);
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    #nav a:hover { color: var(--ink); }
+
+    #sections { min-width: 0; }
+
+    .hud-section {
+      margin-bottom: 42px;
+      padding-bottom: 32px;
+      border-bottom: 1px dashed var(--rule);
+    }
+
+    .hud-section:last-child { border-bottom: none; }
+
+    .hud-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .hud-head h2 { margin: 0; font-size: 22px; }
+
+    .hud-tier {
+      padding: 1px 9px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      color: var(--quiet);
+      font-size: 11px;
+    }
+
+    .hud-note {
+      max-width: 68ch;
+      margin: 8px 0 18px;
+      color: var(--quiet);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .hud-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .hud-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hud-col--grow { flex: 1 1 280px; }
+
+    .hud-caption, .hud-metric {
+      color: var(--quiet);
+      font-size: 11.5px;
+    }
+
+    .hud-metric {
+      margin: 12px 0 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .hud-subhead {
+      margin: 22px 0 10px;
+      color: var(--quiet);
+      font-size: 12.5px;
+      font-weight: 400;
+    }
+
+    .hud-error {
+      padding: 12px;
+      border: 1px solid #9b2c2c;
+      background: rgba(155, 44, 44, 0.08);
+      color: #9b2c2c;
+      font-size: 11px;
+      white-space: pre-wrap;
+    }
+
+    /* rough-skin.js plumbing */
+    .skinned {
+      position: relative;
+      border: none;
+      background: transparent;
+    }
+
+    .skin-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .skinned > :not(.skin-svg) { position: relative; }
+
+    /* buttons */
+    .hud-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 148px;
+      height: 42px;
+      padding: 0;
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+      --skin-fill: transparent;
+    }
+
+    .hud-btn:hover, .hud-btn.is-hot { --skin-fill: rgba(138, 59, 36, 0.12); }
+    .hud-btn:active { --skin-fill: rgba(138, 59, 36, 0.28); }
+    .hud-btn.is-picked { color: var(--accent); --skin-fill: rgba(138, 59, 36, 0.18); }
+    .hud-btn:disabled, .hud-btn.is-off {
+      opacity: 0.38;
+      cursor: not-allowed;
+      --skin-fill: transparent;
+    }
+
+    .hud-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* inventory */
+    .hud-bag {
+      display: grid;
+      grid-template-columns: repeat(10, var(--slot, 56px));
+      gap: 6px;
+    }
+
+    .hud-slot {
+      position: relative;
+      width: var(--slot, 56px);
+      height: var(--slot, 56px);
+      padding: 0;
+      border: none;
+      background: transparent no-repeat center / 100% 100%;
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+      contain: layout paint;
+    }
+
+    .hud-slot:hover { transform: translateY(-1px); }
+    .hud-slot.is-picked { outline: 2px dashed var(--accent); outline-offset: 2px; }
+    .hud-slot.is-locked { opacity: 0.32; cursor: not-allowed; }
+    .hud-slot.is-source { opacity: 0.35; }
+    .hud-glyph { font-size: 22px; line-height: 1; pointer-events: none; }
+    .hud-stack {
+      position: absolute;
+      right: 5px;
+      bottom: 3px;
+      color: var(--quiet);
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    .hud-hotbar {
+      display: flex;
+      gap: 6px;
+      margin-top: 14px;
+    }
+
+    .hud-hot .hud-key {
+      position: absolute;
+      left: 6px;
+      top: 3px;
+      color: var(--quiet);
+      font-size: 9px;
+    }
+
+    .hud-ghost {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 80;
+      font-size: 24px;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    /* meters */
+    .hud-meters { display: flex; flex-direction: column; gap: 12px; }
+
+    .hud-meter {
+      display: grid;
+      grid-template-columns: 72px 1fr 48px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hud-meter span { color: var(--quiet); font-size: 12.5px; }
+    .hud-meter .hud-n {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 11px;
+    }
+
+    .hud-bar {
+      position: relative;
+      width: 280px;
+      height: 22px;
+      background: no-repeat center / 100% 100%;
+    }
+
+    .hud-bar-fill {
+      position: absolute;
+      inset: 0;
+      background: no-repeat center / 100% 100%;
+      clip-path: inset(0 calc(100% - var(--pct)) 0 0);
+      transition: --pct 420ms ease;
+    }
+
+    .hud-cooldowns { display: flex; gap: 18px; margin-top: 8px; }
+
+    .hud-cd {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      background: no-repeat center / 100% 100%;
+    }
+
+    .hud-cd-fill {
+      position: absolute;
+      inset: 0;
+      background: no-repeat center / 100% 100%;
+      mask-image: conic-gradient(from -90deg, #000 0 var(--pct), transparent var(--pct));
+      -webkit-mask-image: conic-gradient(from -90deg, #000 0 var(--pct), transparent var(--pct));
+      transition: --pct 420ms ease;
+    }
+
+    .hud-cd-label {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      pointer-events: none;
+    }
+
+    /* frames */
+    .hud-window {
+      min-width: 220px;
+      min-height: 140px;
+      padding: 18px 22px;
+      overflow: auto;
+      resize: both;
+      color: var(--ink);
+    }
+
+    .hud-window h3 { margin: 0 0 8px; font-size: 16px; }
+    .hud-window p { margin: 0; color: var(--quiet); font-size: 12.5px; line-height: 1.55; }
+    .hud-window--slice { border-style: solid; border-color: transparent; }
+
+    /* fields */
+    .hud-fields { display: flex; flex-direction: column; gap: 16px; max-width: 420px; }
+
+    .hud-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 14px 16px 12px;
+    }
+
+    .hud-field > span { color: var(--quiet); font-size: 12px; }
+
+    .hud-field input,
+    .hud-field textarea {
+      border: none;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      padding: 4px 2px;
+    }
+
+    .hud-field textarea { min-height: 72px; resize: vertical; }
+
+    .hud-field input:focus,
+    .hud-field textarea:focus {
+      outline: 2px dashed var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* float / tooltip / menu */
+    .hud-stage {
+      position: relative;
+      min-height: 180px;
+      padding: 28px;
+    }
+
+    .hud-anchor {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 160px;
+      height: 42px;
+      cursor: pointer;
+      color: var(--ink);
+      font: inherit;
+      --skin-fill: transparent;
+    }
+
+    .hud-tip {
+      position: absolute;
+      z-index: 5;
+      max-width: 220px;
+      padding: 10px 14px;
+      color: var(--ink);
+      font-size: 12.5px;
+      line-height: 1.45;
+      pointer-events: none;
+    }
+
+    .hud-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 200px;
+      padding: 12px 10px;
+    }
+
+    .hud-menu button {
+      width: 180px;
+      height: 36px;
+      padding: 0 12px;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      --skin-fill: transparent;
+    }
+
+    .hud-menu button:hover { --skin-fill: rgba(138, 59, 36, 0.12); }
+
+    .hud-pulse {
+      margin-top: 12px;
+      padding: 6px 12px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 860px) {
+      .hud-top, .hud-page { grid-template-columns: 1fr; padding-inline: 16px; }
+      #nav { position: static; flex-direction: row; flex-wrap: wrap; gap: 10px; }
+      .hud-bag { grid-template-columns: repeat(auto-fill, var(--slot, 56px)); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hud-bar-fill, .hud-cd-fill { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hud-top">
+    <div class="hud-brand">
+      <h1>Screen-space HUD</h1>
+      <p>
+        A second widget gallery built from <code>docs/ui-architecture.md</code>:
+        DOM chrome, skinned with <code>rough.svg()</code>. World-space stays on canvas.
+        Pre-render, never regenerate.
+      </p>
+    </div>
+    <div class="hud-controls">
+      <div class="hud-ctrl">
+        <label for="roughness">roughness <span id="roughnessValue">1.3</span></label>
+        <input id="roughness" type="range" min="0" max="4" step="0.1" value="1.3" />
+      </div>
+      <div class="hud-ctrl">
+        <label for="bowing">bowing <span id="bowingValue">1.2</span></label>
+        <input id="bowing" type="range" min="0" max="6" step="0.1" value="1.2" />
+      </div>
+      <div class="hud-ctrl">
+        <label for="strokeWidth">strokeWidth <span id="strokeWidthValue">1.5</span></label>
+        <input id="strokeWidth" type="range" min="0.5" max="5" step="0.1" value="1.5" />
+      </div>
+      <div class="hud-ctrl">
+        <label for="variants">seed variants <span id="variantsValue">4</span></label>
+        <input id="variants" type="range" min="1" max="8" step="1" value="4" />
+      </div>
+      <div class="hud-actions">
+        <button id="reroll" type="button">Re-roll seeds</button>
+        <button id="reset" type="button">Reset</button>
+        <button id="theme" type="button">Dark</button>
+      </div>
+      <div id="readout">—</div>
+    </div>
+  </header>
+
+  <div class="hud-page">
+    <nav id="nav"></nav>
+    <main id="sections"></main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+  <script type="module" src="./hud.js"></script>
+</body>
+</html>
