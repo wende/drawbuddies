@@ -17,6 +17,10 @@
       {
         "name": "CANVAS_ROOM",
         "class_name": "CanvasRoom"
+      },
+      {
+        "name": "ROOM_REGISTRY",
+        "class_name": "RoomRegistry"
       }
     ]
   },
@@ -24,6 +28,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["CanvasRoom"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["RoomRegistry"]
     }
   ]
 }

@@ -61,10 +61,32 @@ let lastBroadcastMoving = false;
 
 // ===== Movement (WASD) + hint =====
 
+// Input types that the user types into. WASD must yield to these so it doesn't
+// eat keystrokes the user intended for the field. Everything else (<input
+// type="range">, type="color", type="checkbox", <button>, <select>, ...) is a
+// control the user adjusts with the mouse/pointer — letting WASD take over
+// there means the player keeps moving while a slider or color picker has
+// focus.
+const TEXT_INPUT_TYPES = new Set([
+  "text",
+  "search",
+  "email",
+  "url",
+  "tel",
+  "password",
+  "number"
+]);
+
 export function isEditableTarget(target) {
   if (!target || target === document.body) return false;
   const tag = target.tagName ? target.tagName.toLowerCase() : "";
-  return tag === "input" || tag === "textarea" || target.isContentEditable;
+  if (target.isContentEditable) return true;
+  if (tag === "textarea") return true;
+  if (tag === "input") {
+    const type = (target.type || "text").toLowerCase();
+    return TEXT_INPUT_TYPES.has(type);
+  }
+  return false;
 }
 
 export function updateMovementHint() {

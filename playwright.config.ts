@@ -2,6 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  // Vitest owns `tests/unit/**/*.test.ts`; Playwright only picks up `*.spec.ts`.
+  testMatch: "**/*.spec.ts",
+  testIgnore: "**/unit/**",
   use: {
     baseURL: "http://localhost:14321",
   },
