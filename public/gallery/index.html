@@ -264,6 +264,17 @@
     .skinned > :not(.skin-svg) { position: relative; }
 
     /* buttons */
+    .hud-btn,
+    .hud-anchor,
+    .hud-menu button {
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      background: transparent;
+      background-color: transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     .hud-btn {
       display: inline-flex;
       align-items: center;
@@ -275,21 +286,47 @@
       font: inherit;
       cursor: pointer;
       --skin-fill: transparent;
+      transition: transform 80ms ease, color 80ms ease;
     }
 
-    .hud-btn:hover, .hud-btn.is-hot { --skin-fill: rgba(138, 59, 36, 0.12); }
-    .hud-btn:active { --skin-fill: rgba(138, 59, 36, 0.28); }
-    .hud-btn.is-picked { color: var(--accent); --skin-fill: rgba(138, 59, 36, 0.18); }
+    .hud-btn:hover,
+    .hud-btn:active,
+    .hud-btn:focus,
+    .hud-btn:focus-visible,
+    .hud-btn.is-pressed,
+    .hud-btn.is-hot {
+      background: transparent;
+      background-color: transparent;
+    }
+
+    .hud-btn:hover, .hud-btn.is-hot { --skin-fill: rgba(138, 59, 36, 0.14); }
+    /* Pressed dent is the default press look. */
+    .hud-btn:active,
+    .hud-btn.is-pressed {
+      transform: translateY(2px) scale(0.985);
+      --skin-fill: rgba(138, 59, 36, 0.42);
+      color: var(--accent);
+    }
+    .hud-btn.is-picked {
+      color: var(--accent);
+      --skin-fill: rgba(138, 59, 36, 0.18);
+    }
+    .hud-btn.is-picked:active,
+    .hud-btn.is-picked.is-pressed {
+      --skin-fill: rgba(138, 59, 36, 0.5);
+    }
     .hud-btn:disabled, .hud-btn.is-off {
       opacity: 0.38;
       cursor: not-allowed;
       --skin-fill: transparent;
+      transform: none;
     }
 
-    /* Press style candidates — compare side by side in Action buttons. */
+    /* Alternate press candidates kept for side-by-side comparison. */
     .hud-btn--stamp:hover { --skin-fill: rgba(36, 31, 24, 0.1); }
     .hud-btn--stamp:active,
     .hud-btn--stamp.is-pressed {
+      transform: none;
       color: var(--paper);
       --skin-fill: var(--ink);
     }
@@ -298,9 +335,6 @@
       --skin-fill: rgba(138, 59, 36, 0.18);
     }
 
-    .hud-btn--dent {
-      transition: transform 80ms ease, color 80ms ease;
-    }
     .hud-btn--dent:hover { --skin-fill: rgba(138, 59, 36, 0.14); }
     .hud-btn--dent:active,
     .hud-btn--dent.is-pressed {
@@ -308,14 +342,11 @@
       --skin-fill: rgba(138, 59, 36, 0.42);
       color: var(--accent);
     }
-    .hud-btn--dent:active .skin-svg,
-    .hud-btn--dent.is-pressed .skin-svg {
-      filter: drop-shadow(0 1px 0 rgba(36, 31, 24, 0.35));
-    }
 
     .hud-btn--hatch:hover { --skin-fill: rgba(138, 59, 36, 0.1); }
     .hud-btn--hatch:active,
     .hud-btn--hatch.is-pressed {
+      transform: none;
       color: var(--accent);
       --skin-fill: rgba(138, 59, 36, 0.22);
     }
@@ -552,9 +583,24 @@
       text-align: left;
       cursor: pointer;
       --skin-fill: transparent;
+      transition: transform 80ms ease, color 80ms ease;
+    }
+
+    .hud-menu button:hover,
+    .hud-menu button:active,
+    .hud-menu button:focus,
+    .hud-menu button.is-pressed {
+      background: transparent;
+      background-color: transparent;
     }
 
     .hud-menu button:hover { --skin-fill: rgba(138, 59, 36, 0.12); }
+    .hud-menu button:active,
+    .hud-menu button.is-pressed {
+      transform: translateY(1px);
+      --skin-fill: rgba(138, 59, 36, 0.36);
+      color: var(--accent);
+    }
 
     .hud-pulse {
       margin-top: 12px;

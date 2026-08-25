@@ -131,3 +131,24 @@ test("press option rows are present for comparison", async ({ page }) => {
   await expect(page.locator("#sec-actions .hud-btn--dent")).toHaveCount(3);
   await expect(page.locator("#sec-actions .hud-btn--hatch")).toHaveCount(3);
 });
+
+test("button press keeps a transparent host background", async ({ page }) => {
+  await openGallery(page);
+
+  const btn = page.locator("#sec-actions .hud-toolbar .hud-btn").first();
+  await btn.dispatchEvent("pointerdown");
+  await btn.evaluate((el) => el.classList.add("is-pressed"));
+
+  const bg = await btn.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { background: style.backgroundColor, image: style.backgroundImage };
+  });
+  expect(bg.background).toMatch(/rgba?\(0,\s*0,\s*0,\s*0\)|transparent/);
+  expect(bg.image === "none" || bg.image.includes("data:image/svg")).toBeTruthy();
+
+  await btn.dispatchEvent("pointerup");
+  await btn.evaluate((el) => el.classList.remove("is-pressed"));
+
+  const after = await btn.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(after).toMatch(/rgba?\(0,\s*0,\s*0,\s*0\)|transparent/);
+});

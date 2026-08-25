@@ -112,9 +112,13 @@ export default {
         pickable: true
       })
     );
-    root.append(ctx.caption("Baseline: press only darkens the wash. Easy to miss next to selected."));
+    root.append(
+      ctx.caption(
+        "Default press is pressed dent (2px drop + darker wash). Native button chrome is fully reset so release does not flash black."
+      )
+    );
 
-    root.append(ctx.subhead("Press options — hold each row and compare"));
+    root.append(ctx.subhead("Other press options — hold to compare"));
 
     const grid = document.createElement("div");
     grid.className = "hud-press-grid";
