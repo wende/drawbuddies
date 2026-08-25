@@ -97,6 +97,16 @@ const SLOT = Array.from({ length: 4 }, (_, i) => bakeSprite(64, 64, SLOT_OPTS, 1
 Assign by `index % 4`. Sixty slots cost **four** rough calls and **no** extra
 DOM.
 
+> **Found while building the lab:** a Tier 1 sprite **cannot be recoloured by
+> CSS**. A data-URI is an isolated document, so `currentColor` and
+> `var(--token)` inside it have no host to resolve against — `currentColor`
+> falls back to black and custom properties resolve to nothing. Every colour a
+> Tier 1 sprite uses has to be baked in at generation time, which means one
+> sprite per colour. That is fine when the colour set is small and fixed (four
+> bar colours, three rarity tiers); the moment colour is genuinely dynamic, the
+> widget belongs in Tier 2. This is the real dividing line between the tiers, not
+> just "does it need hover styling".
+
 ### Tier 2 — Needs CSS-driven state → shared `<defs>` + `<use>`
 
 Anything whose colour changes on hover, selection, disabled, or item rarity. One
@@ -115,6 +125,11 @@ tiles, then use `border-image` with an SVG data-URI and a correct
 `border-image-slice`: corners stay intact, edges tile. Debounced regeneration is
 the fallback for the few panels where 9-slice reads wrong.
 
+Whether stretched rough edges actually *look* right is a judgement call, not
+something to settle on paper, so both approaches sit side by side and resizable
+in the widget lab (`public/lab/`, "Resizable panels") with their costs displayed.
+Drag both and pick.
+
 ---
 
 ## Per-widget recipes
@@ -124,8 +139,20 @@ the fallback for the few panels where 9-slice reads wrong.
 Generate the track and a **full-width** fill once. Animate by clipping:
 
 ```css
-.bar-fill { clip-path: inset(0 calc(100% - var(--pct)) 0 0); }
+@property --pct { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+
+.bar-fill { clip-path: inset(0 calc(100% - var(--pct)) 0 0); transition: --pct 420ms ease; }
 ```
+
+Registering `--pct` with `@property` is what makes the transition animate at all
+— an unregistered custom property jumps rather than tweens.
+
+> **Found while building the lab:** `inherits: false` means `--pct` must be set
+> on **the element that owns the `clip-path`**, not its parent. Setting it on the
+> wrapping `.bar` looks right, changes nothing, and silently leaves the fill
+> clipped to the `0%` initial value — a bar that renders as an empty track with
+> no error anywhere. Either set it on `.bar-fill` directly or declare
+> `inherits: true`.
 
 Paint-only, no layout, no rough calls, 60fps. Critically, the fill's wobble stays
 **anchored** — the strokes do not crawl as the bar advances, which is what
@@ -216,9 +243,18 @@ layout library — and expect to keep a hidden DOM input for text regardless.
 - `rough.svg()` and `rough.generator()` are both available: `public/index.html:668`
   loads the **full** roughjs bundle from CDN, and `public/app/state.js` already
   re-exports `window.rough` plus a `rough.newSeed()` helper.
-- Suggested new module: `public/app/rough-skin.js`, exporting `bakeSprite()`, a
-  sprite cache keyed by `(shape, w, h, seed, opts)`, and a `<defs>` registry for
-  Tier 2 `<use>` references.
+- `public/app/rough-skin.js` implements all three tiers: `bakeSprite()` with a
+  cache keyed by `(shape, w, h, seed, opts)`, a `<defs>` registry behind
+  `registerSprite()` / `useSprite()` / `skin()`, and `nineSlice()`. It reads
+  `window.rough` directly rather than importing `state.js`, so it loads without
+  the app's canvas being present.
+- `public/lab/` is the widget lab: a static gallery for prototyping elements in
+  isolation, with live rough controls and a generation-count readout. Adding an
+  element is one module in `public/lab/elements/` plus one line in its
+  `index.js`. It is deployed per-branch to Vercel via `vercel.json` and needs no
+  Worker, so it runs anywhere static.
+- `tests/widget-lab.spec.ts` locks the cost claims in: if anyone reintroduces
+  per-element generation, the inventory-grid assertion fails.
 - Existing CSS to strip once skinning lands: the `border`, `background`, and
   `border-radius` declarations on `.toolbar`, `button`, `.hint`, and the avatar
   overlay in `public/index.html`.
