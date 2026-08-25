@@ -8,7 +8,8 @@ const BARS = [
   { id: "hp", label: "Health", pct: 65, fill: "#8a3b24" },
   { id: "mp", label: "Mana", pct: 42, fill: "#2f5f8a" },
   { id: "st", label: "Stamina", pct: 88, fill: "#3f6d3a" },
-  { id: "xp", label: "Insight", pct: 23, fill: "#b8860b" }
+  { id: "xp", label: "Insight", pct: 23, fill: "#b8860b" },
+  { id: "cd", label: "Cooldown", pct: 20, fill: "#9b8bb4" }
 ];
 
 const SPELLS = [
@@ -42,6 +43,7 @@ export default {
 
     const list = document.createElement("div");
     list.className = "hud-meters";
+    const entries = [];
 
     for (const bar of BARS) {
       const row = document.createElement("div");
@@ -66,22 +68,37 @@ export default {
 
       row.append(label, trackEl, number);
       list.append(row);
+      entries.push({ fill: fillEl, pct: number, value: bar.pct / 100 });
     }
 
     root.append(list);
 
-    const pulse = document.createElement("button");
-    pulse.type = "button";
-    pulse.className = "hud-pulse";
-    pulse.textContent = "Nudge vitals";
-    pulse.addEventListener("click", () => {
-      for (const fill of list.querySelectorAll(".hud-bar-fill")) {
-        const next = 12 + Math.round(Math.random() * 86);
-        fill.style.setProperty("--pct", `${next}%`);
-        fill.parentElement.nextElementSibling.textContent = `${next}%`;
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "hud-pulse";
+    toggle.textContent = "Animate";
+    let timer = null;
+    toggle.addEventListener("click", () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+        toggle.textContent = "Animate";
+        toggle.classList.remove("is-on");
+        return;
       }
+      toggle.textContent = "Stop";
+      toggle.classList.add("is-on");
+      timer = setInterval(() => {
+        for (const entry of entries) {
+          entry.value = Math.random();
+          const next = Math.round(entry.value * 100);
+          entry.fill.style.setProperty("--pct", `${next}%`);
+          entry.pct.textContent = `${next}%`;
+        }
+      }, 900);
     });
-    root.append(pulse);
+    ctx.onTeardown(() => timer && clearInterval(timer));
+    root.append(toggle);
 
     root.append(ctx.subhead("Radial cooldown sweeps"));
 
@@ -118,7 +135,9 @@ export default {
 
     const calls = stats.generations - before;
     root.append(
-      ctx.metric(`${BARS.length} bars + ${SPELLS.length} radials · ${calls} rough calls · paint-only animation`)
+      ctx.metric(
+        `1 track + ${BARS.length} colour fills + ${SPELLS.length} radials = ${calls} rough calls · 0 per frame`
+      )
     );
   }
 };

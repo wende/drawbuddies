@@ -96,6 +96,50 @@ export default {
     "Hover, press, selected, and disabled are paint-only. Geometry is registered once " +
     "per seed variant; every button is a <use> of that sprite. State never re-rolls the wobble.",
   render(root, ctx) {
+    root.append(ctx.subhead("Static states — one outline, paint-only"));
+    const states = [
+      { label: "Default", cls: "" },
+      { label: "Hover", cls: "is-hot" },
+      { label: "Active", cls: "is-pressed" },
+      { label: "Disabled", cls: "is-off", disabled: true },
+      { label: "Selected", cls: "is-picked" }
+    ];
+    const stateRow = document.createElement("div");
+    stateRow.className = "hud-toolbar";
+    const sharedId = ctx.key("state-btn");
+    registerSprite(sharedId, "rectangle", 132, 40, { ...ctx.opts, fill: "none" }, ctx.variant(0));
+    for (const state of states) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `hud-btn ${state.cls}`.trim();
+      btn.style.width = "132px";
+      btn.style.height = "40px";
+      btn.textContent = state.label;
+      if (state.disabled) btn.disabled = true;
+      skin(btn, { id: sharedId, w: 132, h: 40, options: { ...ctx.opts, fill: "none" }, seed: ctx.variant(0) });
+      stateRow.append(btn);
+    }
+    root.append(stateRow);
+    root.append(ctx.caption("Every state above shares one generated outline. The wobble must not move."));
+
+    root.append(ctx.subhead("Seed pool — variants related, not identical"));
+    const seedRow = document.createElement("div");
+    seedRow.className = "hud-toolbar";
+    ctx.seeds.forEach((seed, i) => {
+      const id = ctx.key(`seed-btn-${i}`);
+      registerSprite(id, "rectangle", 132, 40, { ...ctx.opts, fill: "none" }, seed);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "hud-btn";
+      btn.style.width = "132px";
+      btn.style.height = "40px";
+      btn.textContent = `Seed ${i + 1}`;
+      skin(btn, { id, w: 132, h: 40, options: { ...ctx.opts, fill: "none" }, seed });
+      seedRow.append(btn);
+    });
+    root.append(seedRow);
+
+    root.append(ctx.subhead("Live toolbar"));
     root.append(
       makeToolbar(LABELS, {
         ctx,
