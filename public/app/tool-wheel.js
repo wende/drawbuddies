@@ -1,8 +1,9 @@
-// Mobile Move toggle + long-press radial tool picker.
-// A short tap flips walk mode. Holding (or dragging off the button) opens a
-// pizza-slice menu of the toolbar tools; releasing on a slice selects it.
+// Walk toggle (yin-yang) + long-press radial tool picker.
+// Hold still anywhere on the canvas (or on the toggle) to open a pizza-slice
+// menu of drawing tools. A short tap on the toggle flips walk mode. Moving
+// before the long-press delay starts the current canvas tool as usual.
 
-import { modeSwitchEl, state } from "./state.js";
+import { canvas, modeSwitchEl, state } from "./state.js";
 import { clearSelection } from "./shapes.js";
 import { redraw } from "./render.js";
 import { setInputMode } from "./input.js";
@@ -27,6 +28,7 @@ const TOOL_SWEEP = -Math.PI * 2;
 const TOOL_START = -Math.PI / 2;
 
 let wheelEl = null;
+let canvasHandlers = null;
 let pointerId = null;
 let startPoint = { x: 0, y: 0 };
 let longPressTimer = null;
@@ -34,11 +36,15 @@ let wheelOpen = false;
 let hoverTool = null;
 let layout = null;
 let openedThisGesture = false;
+let source = null;
+let toolStarted = false;
+let downSnapshot = null;
 
 export function selectTool(toolName) {
   if (!toolName) return;
 
   state.currentTool = toolName;
+  document.body.dataset.tool = toolName;
   if (toolName === "smart") clearSelection();
 
   document.body.classList.toggle("hand-mode", toolName === "hand");
@@ -56,6 +62,20 @@ export function selectTool(toolName) {
 
 export function toggleWalkMode() {
   setInputMode(state.inputMode === "move" ? "draw" : "move");
+}
+
+function snapshotPointer(event) {
+  return {
+    pointerId: event.pointerId,
+    button: event.button,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    pointerType: event.pointerType || "mouse",
+    preventDefault() {},
+    getCoalescedEvents: typeof event.getCoalescedEvents === "function"
+      ? () => event.getCoalescedEvents()
+      : undefined
+  };
 }
 
 function ensureWheel() {
@@ -119,15 +139,12 @@ function donutSlicePath(cx, cy, inner, outer, a0, a1) {
   ].join(" ");
 }
 
-function computeLayout() {
-  const rect = modeSwitchEl.getBoundingClientRect();
+function computeLayout(originX, originY) {
   const viewW = window.visualViewport?.width ?? window.innerWidth;
   const viewH = window.visualViewport?.height ?? window.innerHeight;
-  const btnX = rect.left + rect.width / 2;
-  const btnY = rect.top + rect.height / 2;
-  const cx = clamp(btnX, OUTER_RADIUS + VIEW_PAD, viewW - OUTER_RADIUS - VIEW_PAD);
-  const cy = clamp(btnY, OUTER_RADIUS + VIEW_PAD, viewH - OUTER_RADIUS - VIEW_PAD);
-  return { cx, cy, inner: INNER_RADIUS, outer: OUTER_RADIUS, btnX, btnY, viewW, viewH };
+  const cx = clamp(originX, OUTER_RADIUS + VIEW_PAD, viewW - OUTER_RADIUS - VIEW_PAD);
+  const cy = clamp(originY, OUTER_RADIUS + VIEW_PAD, viewH - OUTER_RADIUS - VIEW_PAD);
+  return { cx, cy, inner: INNER_RADIUS, outer: OUTER_RADIUS, viewW, viewH };
 }
 
 function toolAtPointer(clientX, clientY) {
@@ -172,7 +189,7 @@ function renderWheel() {
   });
 
   const hub = hoverTool
-    ? TOOL_WHEEL_ITEMS.find((item) => item.tool === hoverTool)?.label || "Move"
+    ? TOOL_WHEEL_ITEMS.find((item) => item.tool === hoverTool)?.label || "Tools"
     : "Tools";
   parts.push(`<circle class="tool-wheel-hub" cx="${cx}" cy="${cy}" r="${inner - 2}"></circle>`);
   parts.push(
@@ -183,15 +200,15 @@ function renderWheel() {
 }
 
 function openWheel() {
-  if (wheelOpen) return;
-  layout = computeLayout();
+  if (wheelOpen || toolStarted) return;
+  layout = computeLayout(startPoint.x, startPoint.y);
   hoverTool = null;
   wheelOpen = true;
   openedThisGesture = true;
   const el = ensureWheel();
   el.hidden = false;
   document.body.classList.add("tool-wheel-open");
-  modeSwitchEl.setAttribute("aria-expanded", "true");
+  modeSwitchEl?.setAttribute("aria-expanded", "true");
   renderWheel();
   if (typeof navigator.vibrate === "function") navigator.vibrate(12);
 }
@@ -212,22 +229,69 @@ function clearLongPress() {
   }
 }
 
-function finishGesture(event) {
-  const opened = openedThisGesture;
-  const picked = hoverTool;
-  const id = pointerId;
-  pointerId = null;
-  openedThisGesture = false;
-  clearLongPress();
-
-  if (id !== null) {
+function releaseCaptures(id) {
+  if (id === null) return;
+  for (const el of [canvas, modeSwitchEl]) {
+    if (!el) continue;
     try {
-      modeSwitchEl.releasePointerCapture(id);
+      el.releasePointerCapture(id);
     } catch {
       // Capture may already be released.
     }
   }
+}
 
+function startToolIfNeeded() {
+  if (toolStarted || !downSnapshot || !canvasHandlers) return;
+  toolStarted = true;
+  canvasHandlers.onDown(downSnapshot);
+}
+
+function beginWatch(event, nextSource, captureEl) {
+  if (event.button !== undefined && event.button !== 0) return false;
+  event.preventDefault();
+  pointerId = event.pointerId;
+  startPoint = { x: event.clientX, y: event.clientY };
+  source = nextSource;
+  openedThisGesture = false;
+  toolStarted = false;
+  hoverTool = null;
+  downSnapshot = snapshotPointer(event);
+  try {
+    captureEl.setPointerCapture(event.pointerId);
+  } catch {
+    // Capture is best-effort.
+  }
+  clearLongPress();
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null;
+    openWheel();
+  }, LONG_PRESS_MS);
+  return true;
+}
+
+function updateHover(event) {
+  const next = toolAtPointer(event.clientX, event.clientY);
+  const nextTool = next ? next.tool : null;
+  if (nextTool === hoverTool) return;
+  hoverTool = nextTool;
+  renderWheel();
+}
+
+function finishGesture(event) {
+  const opened = openedThisGesture;
+  const picked = hoverTool;
+  const id = pointerId;
+  const from = source;
+  const started = toolStarted;
+  const origin = startPoint;
+  pointerId = null;
+  source = null;
+  openedThisGesture = false;
+  toolStarted = false;
+  downSnapshot = null;
+  clearLongPress();
+  releaseCaptures(id);
   closeWheel();
 
   if (opened) {
@@ -238,68 +302,132 @@ function finishGesture(event) {
     return;
   }
 
-  if (event && Math.hypot(event.clientX - startPoint.x, event.clientY - startPoint.y) < OPEN_DRAG_PX) {
-    toggleWalkMode();
+  if (started) {
+    canvasHandlers?.onUp(event);
+    return;
+  }
+
+  if (from === "toggle") {
+    if (event && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < OPEN_DRAG_PX) {
+      toggleWalkMode();
+    }
   }
 }
 
-function onPointerDown(event) {
-  if (event.button !== undefined && event.button !== 0) return;
-  event.preventDefault();
-  event.stopPropagation();
-  pointerId = event.pointerId;
-  startPoint = { x: event.clientX, y: event.clientY };
-  openedThisGesture = false;
-  hoverTool = null;
-  modeSwitchEl.setPointerCapture(event.pointerId);
-  clearLongPress();
-  longPressTimer = setTimeout(() => {
-    longPressTimer = null;
-    openWheel();
-  }, LONG_PRESS_MS);
+function onCanvasPointerDown(event) {
+  beginWatch(event, "canvas", canvas);
 }
 
-function onPointerMove(event) {
+function onCanvasPointerMove(event) {
   if (pointerId === null || event.pointerId !== pointerId) return;
-  const dx = event.clientX - startPoint.x;
-  const dy = event.clientY - startPoint.y;
-  if (!wheelOpen && Math.hypot(dx, dy) >= OPEN_DRAG_PX) {
+  if (wheelOpen) {
+    event.preventDefault();
+    updateHover(event);
+    return;
+  }
+  const dist = Math.hypot(event.clientX - startPoint.x, event.clientY - startPoint.y);
+  if (dist >= OPEN_DRAG_PX) {
+    clearLongPress();
+    startToolIfNeeded();
+  }
+  if (toolStarted) canvasHandlers?.onMove(event);
+}
+
+function onCanvasPointerUp(event) {
+  if (pointerId === null || event.pointerId !== pointerId) return;
+  event.preventDefault();
+  if (!openedThisGesture && !toolStarted && source === "canvas") {
+    startToolIfNeeded();
+  }
+  finishGesture(event);
+}
+
+function onCanvasPointerCancel(event) {
+  if (pointerId === null || event.pointerId !== pointerId) return;
+  const started = toolStarted;
+  const id = pointerId;
+  pointerId = null;
+  source = null;
+  openedThisGesture = false;
+  toolStarted = false;
+  downSnapshot = null;
+  clearLongPress();
+  closeWheel();
+  if (started) canvasHandlers?.onCancel(event);
+  else releaseCaptures(id);
+}
+
+function onCanvasLostCapture(event) {
+  if (pointerId === null || event.pointerId !== pointerId) return;
+  if (openedThisGesture) {
+    finishGesture(event);
+    return;
+  }
+  if (toolStarted) {
+    pointerId = null;
+    source = null;
+    toolStarted = false;
+    downSnapshot = null;
+    canvasHandlers?.onLost(event);
+    return;
+  }
+  onCanvasPointerCancel(event);
+}
+
+function onTogglePointerDown(event) {
+  event.stopPropagation();
+  beginWatch(event, "toggle", modeSwitchEl);
+}
+
+function onTogglePointerMove(event) {
+  if (pointerId === null || event.pointerId !== pointerId) return;
+  const dist = Math.hypot(event.clientX - startPoint.x, event.clientY - startPoint.y);
+  if (!wheelOpen && dist >= OPEN_DRAG_PX) {
     clearLongPress();
     openWheel();
   }
-  if (!wheelOpen) return;
-  const next = toolAtPointer(event.clientX, event.clientY);
-  const nextTool = next ? next.tool : null;
-  if (nextTool === hoverTool) return;
-  hoverTool = nextTool;
-  renderWheel();
+  if (wheelOpen) updateHover(event);
 }
 
-function onPointerUp(event) {
+function onTogglePointerUp(event) {
   if (pointerId === null || event.pointerId !== pointerId) return;
   event.preventDefault();
   finishGesture(event);
 }
 
-function onPointerCancel(event) {
+function onTogglePointerCancel(event) {
   if (pointerId === null || event.pointerId !== pointerId) return;
   pointerId = null;
+  source = null;
   openedThisGesture = false;
+  toolStarted = false;
+  downSnapshot = null;
   clearLongPress();
   closeWheel();
 }
 
-export function bindModeToggle() {
-  if (!modeSwitchEl) return;
-  modeSwitchEl.addEventListener("pointerdown", onPointerDown);
-  modeSwitchEl.addEventListener("pointermove", onPointerMove);
-  modeSwitchEl.addEventListener("pointerup", onPointerUp);
-  modeSwitchEl.addEventListener("pointercancel", onPointerCancel);
-  modeSwitchEl.addEventListener("contextmenu", (event) => event.preventDefault());
-  modeSwitchEl.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  });
+export function bindPointerGestures(handlers) {
+  canvasHandlers = handlers;
+  document.body.dataset.tool = state.currentTool;
+  canvas.addEventListener("pointerdown", onCanvasPointerDown);
+  canvas.addEventListener("pointermove", onCanvasPointerMove);
+  canvas.addEventListener("pointerup", onCanvasPointerUp);
+  canvas.addEventListener("pointercancel", onCanvasPointerCancel);
+  canvas.addEventListener("lostpointercapture", onCanvasLostCapture);
+
+  if (modeSwitchEl) {
+    modeSwitchEl.addEventListener("pointerdown", onTogglePointerDown);
+    modeSwitchEl.addEventListener("pointermove", onTogglePointerMove);
+    modeSwitchEl.addEventListener("pointerup", onTogglePointerUp);
+    modeSwitchEl.addEventListener("pointercancel", onTogglePointerCancel);
+    modeSwitchEl.addEventListener("contextmenu", (event) => event.preventDefault());
+    modeSwitchEl.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+  }
+
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
   window.addEventListener("resize", () => {
     if (wheelOpen) closeWheel();
   });

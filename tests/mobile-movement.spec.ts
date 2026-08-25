@@ -35,7 +35,7 @@ async function drawStroke(page: Page, points: Point[]) {
 
 async function pressMoveToggle(page: Page, holdMs = 0) {
   const box = await page.locator("#modeSwitch").boundingBox();
-  if (!box) throw new Error("Move toggle not found");
+  if (!box) throw new Error("Walk switch not found");
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
   await page.mouse.move(x, y);
@@ -50,18 +50,21 @@ test.describe("mobile tap-to-move", () => {
     hasTouch: true,
   });
 
-  test("shows a Move toggle and walks to a tap when it is on", async ({ page }) => {
+  test("shows a yin-yang walk switch and walks to a tap when it is on", async ({ page }) => {
     await openMobileCanvas(page);
 
     const modeSwitch = page.locator("#modeSwitch");
     await expect(modeSwitch).toBeVisible();
+    await expect(modeSwitch.locator(".mode-switch-yin")).toBeVisible();
     await expect(page.locator("#moveHint .move-hint-mobile")).toBeVisible();
+    await expect(page.locator('.toolbar .group[aria-label="Tools"]')).toBeHidden();
 
     const start = await playerPoint(page);
     expect(start.x).toBeGreaterThan(0);
 
     await modeSwitch.click();
     await expect(modeSwitch).toHaveClass(/active/);
+    await expect(modeSwitch).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("body")).toHaveClass(/player-move-mode/);
 
     await page.mouse.click(310, 360);
@@ -92,7 +95,7 @@ test.describe("mobile tap-to-move", () => {
     expect(Math.abs((after.y ?? 0) - (start.y ?? 0))).toBeLessThan(2);
   });
 
-  test("toggling Move off lets the current tool draw again", async ({ page }) => {
+  test("toggling walk off lets the current tool draw again", async ({ page }) => {
     await openMobileCanvas(page);
 
     await page.locator("#modeSwitch").click();
@@ -108,10 +111,12 @@ test.describe("mobile tap-to-move", () => {
     await expect.poll(async () => storedShapeCount(page)).toBe(1);
   });
 
-  test("long-pressing Move opens a pizza-slice tool wheel", async ({ page }) => {
+  test("long-pressing the canvas opens a pizza-slice tool wheel", async ({ page }) => {
     await openMobileCanvas(page);
 
-    await pressMoveToggle(page, 500);
+    await page.mouse.move(200, 300);
+    await page.mouse.down();
+    await page.waitForTimeout(500);
     await expect(page.locator("#toolWheel")).toBeVisible();
     await expect(page.locator("#toolWheel [data-tool='smart']").first()).toBeVisible();
     await expect(page.locator("#toolWheel [data-tool='imagine']").first()).toBeVisible();
@@ -121,10 +126,21 @@ test.describe("mobile tap-to-move", () => {
     await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
   });
 
-  test("dragging to a pizza slice selects that toolbar tool", async ({ page }) => {
+  test("long-pressing the walk switch still opens the tool wheel", async ({ page }) => {
     await openMobileCanvas(page);
 
     await pressMoveToggle(page, 500);
+    await expect(page.locator("#toolWheel")).toBeVisible();
+    await page.mouse.up();
+    await expect(page.locator("#toolWheel")).toBeHidden();
+  });
+
+  test("dragging to a pizza slice selects that tool", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await page.mouse.move(200, 300);
+    await page.mouse.down();
+    await page.waitForTimeout(500);
     await expect(page.locator("#toolWheel")).toBeVisible();
 
     const label = page.locator("#toolWheel text.tool-wheel-label[data-tool='imagine']");
@@ -134,7 +150,7 @@ test.describe("mobile tap-to-move", () => {
     await page.mouse.up();
 
     await expect(page.locator("#toolWheel")).toBeHidden();
-    await expect(page.locator('button.tool[data-tool="imagine"]')).toHaveClass(/active/);
+    await expect(page.locator("body")).toHaveAttribute("data-tool", "imagine");
     await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
   });
 });
@@ -144,10 +160,12 @@ test.describe("desktop chrome", () => {
     viewport: { width: 900, height: 700 },
   });
 
-  test("hides the Move toggle on a desktop viewport", async ({ page }) => {
+  test("hides the walk switch on a desktop viewport", async ({ page }) => {
     await page.addInitScript(() => localStorage.clear());
     await page.goto("/", { waitUntil: "load" });
     await expect(page.locator("#modeSwitch")).toBeHidden();
     await expect(page.locator("#moveHint .move-hint-desktop")).toBeVisible();
+    await expect(page.locator('.toolbar .group[aria-label="Tools"]')).toBeVisible();
+    await expect(page.locator('button.tool[data-tool="imagine"]')).toBeVisible();
   });
 });

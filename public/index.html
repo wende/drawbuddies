@@ -52,6 +52,9 @@
       height: 100dvh;
       touch-action: none;
       cursor: crosshair;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
 
     body.hand-mode #canvas {
@@ -283,6 +286,7 @@
       padding: 0;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 50%;
       background: var(--panel);
@@ -290,18 +294,61 @@
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       color: var(--ink);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.01em;
       user-select: none;
       touch-action: none;
       -webkit-touch-callout: none;
     }
 
-    .mode-switch.active {
-      color: #fffaf0;
-      background: var(--ink);
-      border-color: var(--ink);
+    button.mode-switch:hover,
+    button.mode-switch.active,
+    button.mode-switch.active:hover {
+      color: var(--ink);
+      background: var(--panel);
+      border-color: rgba(35, 32, 25, 0.45);
+    }
+
+    button.mode-switch:active {
+      transform: none;
+    }
+
+    button.mode-switch.active {
+      box-shadow: 0 12px 32px var(--shadow), 0 0 0 2px var(--ink);
+    }
+
+    .mode-switch-yin {
+      display: block;
+      width: 40px;
+      height: 40px;
+      transform-origin: 50% 50%;
+      transition: transform 0.28s ease;
+    }
+
+    button.mode-switch.active .mode-switch-yin {
+      transform: rotate(180deg);
+    }
+
+    .yin-outer {
+      fill: #f7f3ea;
+      stroke: var(--ink);
+      stroke-width: 3;
+    }
+
+    .yin-dark {
+      fill: var(--ink);
+    }
+
+    .yin-dot-light {
+      fill: #f7f3ea;
+    }
+
+    .yin-dot-dark {
+      fill: var(--ink);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mode-switch-yin {
+        transition: none;
+      }
     }
 
     .tool-wheel {
@@ -717,6 +764,15 @@
         display: flex;
       }
 
+      .toolbar > .group[aria-label="Tools"] {
+        display: none;
+      }
+
+      .toolbar > .group[aria-label="Tools"] + .group {
+        border-left: none;
+        padding-left: 4px;
+      }
+
       .move-hint-desktop {
         display: none;
       }
@@ -910,7 +966,7 @@
 
   <div id="moveHint" class="move-hint">
     <span class="move-hint-desktop">WASD to move</span>
-    <span class="move-hint-mobile">Tap Move to walk · hold for tools</span>
+    <span class="move-hint-mobile">Hold anywhere for tools · tap the switch to walk</span>
   </div>
 
   <div class="toolbar" role="toolbar" aria-label="Drawing controls">
@@ -958,7 +1014,14 @@
     </div>
   </div>
 
-  <button id="modeSwitch" class="mode-switch" type="button" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-label="Walk mode. Hold for drawing tools." title="Tap to walk · hold for tools">Move</button>
+  <button id="modeSwitch" class="mode-switch" type="button" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-label="Walk mode. Hold anywhere for drawing tools." title="Tap to walk · hold anywhere for tools">
+    <svg class="mode-switch-yin" viewBox="0 0 64 64" aria-hidden="true">
+      <circle class="yin-outer" cx="32" cy="32" r="30"></circle>
+      <path class="yin-dark" d="M32 2a30 30 0 0 1 0 60 15 15 0 0 1 0-30 15 15 0 0 0 0-30z"></path>
+      <circle class="yin-dot-light" cx="32" cy="17" r="5"></circle>
+      <circle class="yin-dot-dark" cx="32" cy="47" r="5"></circle>
+    </svg>
+  </button>
 
   <div id="avatarOverlay" class="avatar-overlay" hidden>
     <div class="avatar-dialog" role="dialog" aria-modal="true" aria-labelledby="avatarTitle">
