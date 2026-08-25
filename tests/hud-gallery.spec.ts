@@ -15,6 +15,39 @@ async function openGallery(page: Page) {
   return errors;
 }
 
+test("loads widgets from /gallery without a trailing slash", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  page.on("pageerror", (error) => errors.push(String(error)));
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/gallery", { waitUntil: "load" });
+  await page.waitForSelector("#sections .hud-section");
+  await expect(page.locator("#sec-actions")).toBeVisible();
+  await expect(page.locator(".hud-error")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("still boots when /gallery is served without redirecting to a slash", async ({ page, request }) => {
+  const html = await (await request.get("/gallery/")).text();
+  await page.route((url) => url.pathname === "/gallery", async (route) => {
+    await route.fulfill({ status: 200, contentType: "text/html", body: html });
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/gallery", { waitUntil: "load" });
+  await page.waitForSelector("#sections .hud-section");
+  await expect(page.locator("#sec-bag .hud-bag .hud-slot")).toHaveCount(60);
+});
+
+test("gallery HTML pins the module to /gallery/ even without a trailing slash", async ({ request }) => {
+  const html = await (await request.get("/gallery/")).text();
+  expect(html).toContain('<base href="/gallery/"');
+  expect(html).toContain('src="/gallery/hud.js"');
+});
+
 test("renders every HUD widget without errors", async ({ page }) => {
   const errors = await openGallery(page);
 

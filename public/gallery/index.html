@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="/gallery/" />
   <title>DrawBuddies — Screen-space HUD</title>
   <link rel="preload" href="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/fonts/Excalifont-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
   <style>
@@ -212,6 +213,7 @@
     .hud-col {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: 6px;
     }
 
@@ -408,6 +410,8 @@
 
     /* frames */
     .hud-window {
+      width: 280px;
+      height: 170px;
       min-width: 220px;
       min-height: 140px;
       padding: 18px 22px;
@@ -565,6 +569,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
-  <script type="module" src="./hud.js"></script>
+  <!-- Root-absolute so /gallery (no trailing slash) still loads on Vercel. -->
+  <script type="module" src="/gallery/hud.js"></script>
 </body>
 </html>
