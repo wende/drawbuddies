@@ -471,6 +471,8 @@ export function shapeBaseBounds(shape) {
   return normalizedBox(shape.geom);
 }
 
+// World-space AABB. For rotatable types this wraps the local AABB from
+// shapeBaseBounds; hit-testing uses the local box plus pointInShapeLocalSpace.
 export function shapeBounds(shape) {
   const box = shapeBaseBounds(shape);
   return canStoreRotation(shape) ? rotatedBoxBounds(box, shapeRotation(shape)) : box;
@@ -523,6 +525,7 @@ export function pointInShapeForDragging(shape, point) {
   }
 
   if (shape.type === "path") {
+    // localPoint is already un-rotated; keep using the local AABB here.
     return expandedBoxContains(shapeBaseBounds(shape), localPoint, padding);
   }
 

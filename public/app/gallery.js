@@ -37,7 +37,7 @@ import {
   shapeZRank
 } from "./shapes.js";
 import { scaleGeom, translateGeom } from "./transforms.js";
-import { recordHistory, updateHistoryButtons } from "./history.js";
+import { recordHistory } from "./history.js";
 import { net } from "./net.js";
 import { drawShapeOn, redraw } from "./render.js";
 
@@ -369,7 +369,7 @@ export function isGalleryEditorOpen() {
   return Boolean(editorApi && editorApi.isOpen && editorApi.isOpen());
 }
 
-export function captureToGallery(shapes) {
+export function captureToGallery(shapes, { discardMoveHistory = false } = {}) {
   const collected = collectGalleryShapes(shapes);
   if (!collected.length) return false;
   const size = worldSizeOf(collected);
@@ -379,7 +379,8 @@ export function captureToGallery(shapes) {
     name: defaultName(),
     shapes: collected,
     placeWidth: size.width,
-    placeHeight: size.height
+    placeHeight: size.height,
+    discardMoveHistory
   });
   return true;
 }
@@ -396,11 +397,7 @@ function restoreWorldShapes(drag) {
 
 export function dropWorldShapesOnGallery(drag) {
   restoreWorldShapes(drag);
-  if (drag.historyRecorded) {
-    state.historyStack.pop();
-    updateHistoryButtons();
-  }
-  captureToGallery(drag.dragShapes);
+  captureToGallery(drag.dragShapes, { discardMoveHistory: Boolean(drag.historyRecorded) });
   redraw();
 }
 

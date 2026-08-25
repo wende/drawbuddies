@@ -35,6 +35,7 @@ import {
 } from "./shapes.js";
 import { drawShapeOn, drawTrashCan } from "./render.js";
 import { drawTextShape } from "./shapes.js";
+import { updateHistoryButtons } from "./history.js";
 import {
   applyTransformFromOriginal,
   isTransformTool,
@@ -68,6 +69,7 @@ export const galleryEditor = (() => {
   let editingId = null;
   let placeWidth = 160;
   let placeHeight = 160;
+  let discardMoveHistory = false;
 
   const editorControls = {
     name: document.getElementById("galleryItemName"),
@@ -436,6 +438,7 @@ export const galleryEditor = (() => {
     document.body.appendChild(editor);
 
     const commit = () => {
+      if (editor.dataset.discard === "1") return;
       if (!editor.parentNode) return;
       const text = editor.value.trimEnd();
       editor.remove();
@@ -699,14 +702,27 @@ export const galleryEditor = (() => {
     drawEditor();
   }
 
+  function discardInFlightTextEditors() {
+    document.querySelectorAll("textarea.avatar-text-editor").forEach((el) => {
+      el.dataset.discard = "1";
+      el.remove();
+    });
+  }
+
   function close() {
+    discardInFlightTextEditors();
     overlay.hidden = true;
     editorActiveDrag = null;
+    discardMoveHistory = false;
     state.pressedMovementKeys.clear();
   }
 
   function commit() {
     if (!editorShapes.length) return;
+    if (discardMoveHistory && state.historyStack.length) {
+      state.historyStack.pop();
+      updateHistoryButtons();
+    }
     const name = editorControls.name.value;
     upsertGalleryItem({
       id: editingId,
@@ -739,6 +755,7 @@ export const galleryEditor = (() => {
     editorControls.name.value = options.name || (item && item.name) || "Object";
     editorControls.title.textContent = editingId ? "Edit object" : "Save to gallery";
     editorControls.deleteBtn.hidden = !editingId;
+    discardMoveHistory = Boolean(options.discardMoveHistory);
 
     loadShapes(options.shapes || (item ? item.shapes : []));
     editorSelectedIds = [];
@@ -790,9 +807,14 @@ export const galleryEditor = (() => {
   editorControls.undoBtn.addEventListener("click", undoEditor);
   editorControls.redoBtn.addEventListener("click", redoEditor);
   editorControls.clearBtn.addEventListener("click", clearDraft);
+  editorControls.deleteBtn.addEventListener("pointerdown", discardInFlightTextEditors);
   editorControls.deleteBtn.addEventListener("click", removeCurrent);
+  editorControls.cancelBtn.addEventListener("pointerdown", discardInFlightTextEditors);
   editorControls.cancelBtn.addEventListener("click", close);
   editorControls.okayBtn.addEventListener("click", commit);
+  overlay.addEventListener("pointerdown", (event) => {
+    if (event.target === overlay) discardInFlightTextEditors();
+  });
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) close();
   });

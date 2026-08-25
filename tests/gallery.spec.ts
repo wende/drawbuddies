@@ -34,6 +34,21 @@ const RECTANGLE: ShapeData = {
   }
 };
 
+const RECTANGLE_TWO: ShapeData = {
+  id: "gallery-source-rect-2",
+  type: "rectangle",
+  geom: { x1: 120, y1: 400, x2: 200, y2: 460 },
+  options: {
+    stroke: "#222222",
+    fill: "#cde8ff",
+    fillStyle: "solid",
+    roughness: 1.5,
+    bowing: 1,
+    strokeWidth: 2,
+    seed: 124
+  }
+};
+
 const GALLERY_ITEM_SHAPES: ShapeData[] = [
   {
     id: "saved-rect",
@@ -107,6 +122,73 @@ async function storedWorldShapes(page: Page) {
     return JSON.parse(raw) as ShapeData[];
   });
 }
+
+test("hand-tool drags show a grabbing cursor on the canvas", async ({ page }) => {
+  await openCanvas(page, { shapes: [RECTANGLE] });
+  await page.click('button[data-tool="hand"]');
+
+  await page.mouse.move(250, 230);
+  await page.mouse.down();
+  await page.mouse.move(270, 250, { steps: 8 });
+
+  await expect(page.locator("body")).toHaveClass(/dragging-shape/);
+  await expect(page.locator("#canvas")).toHaveCSS("cursor", "grabbing");
+
+  await page.mouse.up();
+  await expect(page.locator("body")).not.toHaveClass(/dragging-shape/);
+});
+
+test("cancelling a gallery drop does not consume an extra undo", async ({ page }) => {
+  await openCanvas(page, { shapes: [RECTANGLE, RECTANGLE_TWO] });
+  await openGallery(page);
+
+  await page.click('button[data-tool="hand"]');
+  const panel = page.locator("#galleryPanel");
+  const box = await panel.boundingBox();
+  if (!box) throw new Error("gallery panel not visible");
+
+  await drag(page, [250, 230], [box.x + box.width / 2, box.y + 80]);
+  await expect(page.locator("#galleryEditorOverlay")).toBeVisible();
+
+  await page.click("#galleryCancelBtn");
+  await expect(page.locator("#galleryEditorOverlay")).toBeHidden();
+  await expect.poll(async () => (await storedWorldShapes(page)).length).toBe(2);
+
+  await page.click("#undoBtn");
+  await expect.poll(async () => (await storedWorldShapes(page)).length).toBe(2);
+});
+
+async function galleryEditorPoint(page: Page, point: [number, number]) {
+  const box = await page.locator("#galleryEditorCanvas").boundingBox();
+  if (!box) throw new Error("gallery editor canvas not visible");
+  return [
+    box.x + (point[0] / 320) * box.width,
+    box.y + (point[1] / 320) * box.height
+  ] as [number, number];
+}
+
+test("closing the gallery editor discards an in-flight text field", async ({ page }) => {
+  await openCanvas(page);
+  await openGallery(page);
+  await page.click(".gallery-slot-add");
+  await expect(page.locator("#galleryEditorOverlay")).toBeVisible();
+
+  await page.click('button[data-gallery-tool="text"]');
+  const [x, y] = await galleryEditorPoint(page, [160, 160]);
+  await page.mouse.click(x, y);
+  const editor = page.locator("textarea.avatar-text-editor");
+  await expect(editor).toBeVisible();
+  await editor.fill("Hidden label");
+
+  await page.click("#galleryCancelBtn");
+  await expect(page.locator("#galleryEditorOverlay")).toBeHidden();
+  await expect(page.locator("textarea.avatar-text-editor")).toHaveCount(0);
+
+  await page.click(".gallery-slot-add");
+  await expect(page.locator("#galleryEditorOverlay")).toBeVisible();
+  await expect(page.locator("#galleryOkayBtn")).toBeDisabled();
+  await expect(page.locator("textarea.avatar-text-editor")).toHaveCount(0);
+});
 
 test("gallery panel opens from the top bar", async ({ page }) => {
   await openCanvas(page);
