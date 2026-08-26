@@ -19,6 +19,10 @@ import {
 import { avatarEditor } from "./avatar-editor.js";
 import { rooms } from "./rooms.js";
 import { bindPointerGestures, selectTool } from "./tool-wheel.js";
+import { bindGalleryEditor, gallery } from "./gallery.js";
+import { galleryEditor } from "./gallery-editor.js";
+
+bindGalleryEditor(galleryEditor);
 
 function refreshControlLabels() {
   controls.roughnessValue.textContent = Number(controls.roughness.value).toFixed(1);
@@ -52,12 +56,22 @@ bindPointerGestures({
 controls.undoBtn.addEventListener("click", undo);
 controls.redoBtn.addEventListener("click", redo);
 controls.clearBtn.addEventListener("click", clearAll);
-controls.avatarBtn.addEventListener("click", () => avatarEditor.open());
+controls.avatarBtn.addEventListener("click", () => {
+  if (galleryEditor.isOpen()) galleryEditor.close();
+  avatarEditor.open();
+});
+controls.galleryBtn.addEventListener("click", () => gallery.toggle());
 controls.roomsBtn.addEventListener("click", () => rooms.openPanel());
 
 document.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
   if (handleMovementKey(event, true)) return;
+
+  if (galleryEditor.isOpen() && key === "escape") {
+    event.preventDefault();
+    galleryEditor.close();
+    return;
+  }
 
   if (avatarEditor.isOpen() && key === "escape") {
     event.preventDefault();
@@ -65,9 +79,16 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (gallery.isOpen() && key === "escape") {
+    event.preventDefault();
+    gallery.close();
+    return;
+  }
+
   if ((event.metaKey || event.ctrlKey) && key === "z" && !event.shiftKey) {
     event.preventDefault();
-    if (avatarEditor.isOpen()) avatarEditor.undo();
+    if (galleryEditor.isOpen()) galleryEditor.undo();
+    else if (avatarEditor.isOpen()) avatarEditor.undo();
     else undo();
   }
 
@@ -76,7 +97,8 @@ document.addEventListener("keydown", (event) => {
     (key === "y" || (key === "z" && event.shiftKey))
   ) {
     event.preventDefault();
-    if (avatarEditor.isOpen()) avatarEditor.redo();
+    if (galleryEditor.isOpen()) galleryEditor.redo();
+    else if (avatarEditor.isOpen()) avatarEditor.redo();
     else redo();
   }
 });

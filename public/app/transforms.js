@@ -13,7 +13,7 @@ import {
   scalePointObject,
   shapeRotation
 } from "./geometry.js";
-import { groupScale, shapeBaseBounds } from "./shapes.js";
+import { groupScale, pathScale, shapeBaseBounds } from "./shapes.js";
 
 export function translateGeom(geom, dx, dy) {
   if (Array.isArray(geom.children)) {
@@ -60,8 +60,9 @@ export function translateGeom(geom, dx, dy) {
 export function scaleGeom(shape, geom, center, factor) {
   // Scale the whole group about the pivot: T'(p) = factor*(T(p) - center) + center,
   // where T(p) = scale*p + (ox, oy). So scale and offset compose cleanly.
-  if (Array.isArray(geom.children)) {
-    const nextScale = groupScale(geom) * factor;
+  if (Array.isArray(geom.children) || typeof geom.d === "string") {
+    const current = Array.isArray(geom.children) ? groupScale(geom) : pathScale(geom);
+    const nextScale = current * factor;
     return {
       ...geom,
       scale: Math.round(nextScale * 1e4) / 1e4,

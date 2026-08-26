@@ -29,6 +29,7 @@ import {
   groupScale,
   hydrateAvatarShapeList,
   orderedShapes,
+  pathScale,
   selectionBounds,
   shapeBaseBounds,
   shapeZRank
@@ -55,11 +56,6 @@ export function drawPuppetGuide(context, guide) {
 }
 
 export function drawShapeOn(context, rcInst, buildDrawableForShape, shape) {
-  const pathOffset =
-    shape.type === "path"
-      ? { x: shape.geom.ox || 0, y: shape.geom.oy || 0 }
-      : null;
-
   const draw = () => {
     if (shape.type === "text") {
       drawTextShape(context, shape);
@@ -87,9 +83,16 @@ export function drawShapeOn(context, rcInst, buildDrawableForShape, shape) {
     }
 
     if (shape.drawable) {
-      if (pathOffset && (pathOffset.x || pathOffset.y)) {
+      const pathOffset =
+        shape.type === "path"
+          ? { x: shape.geom.ox || 0, y: shape.geom.oy || 0 }
+          : null;
+      const scale = shape.type === "path" ? pathScale(shape.geom) : 1;
+      const transformed = pathOffset && (pathOffset.x || pathOffset.y || scale !== 1);
+      if (transformed) {
         context.save();
         context.translate(pathOffset.x, pathOffset.y);
+        if (scale !== 1) context.scale(scale, scale);
         rcInst.draw(shape.drawable);
         context.restore();
         return;
