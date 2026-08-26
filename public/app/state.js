@@ -24,6 +24,7 @@ export const GALLERY_STORAGE_KEY = "drawbuddies:gallery:v1";
 export const GALLERY_FRAME = { width: 320, height: 320 };
 export const GALLERY_SLOT = 88;
 export const PLAYER_SPEED = 220;
+export const TOUCH_UI_QUERY = "(max-width: 760px), (pointer: coarse)";
 
 export const canvas = document.getElementById("canvas");
 export const ctx = canvas.getContext("2d", { alpha: false });
@@ -47,6 +48,35 @@ export const controls = {
 export const statusDot = document.getElementById("statusDot");
 export const presenceEl = document.getElementById("presence");
 export const moveHintEl = document.getElementById("moveHint");
+export const toolbarEl = document.querySelector(".toolbar");
+export const modeSwitchEl = document.getElementById("modeSwitch");
+
+export function isTouchUi() {
+  return typeof window.matchMedia === "function" && window.matchMedia(TOUCH_UI_QUERY).matches;
+}
+
+// Space occupied by the bottom toolbar (and the move/draw switch beside it).
+export function chromeBottomInset() {
+  const viewportHeight = state.viewHeight || window.innerHeight;
+  let top = viewportHeight;
+  let found = false;
+  if (toolbarEl) {
+    const rect = toolbarEl.getBoundingClientRect();
+    if (rect.height > 0) {
+      found = true;
+      if (rect.top < top) top = rect.top;
+    }
+  }
+  if (modeSwitchEl && isTouchUi()) {
+    const rect = modeSwitchEl.getBoundingClientRect();
+    if (rect.height > 0) {
+      found = true;
+      if (rect.top < top) top = rect.top;
+    }
+  }
+  if (!found) return 0;
+  return Math.round(viewportHeight - top + 10);
+}
 
 export const gen = rough.generator();
 
@@ -101,6 +131,8 @@ export const state = {
   viewWidth: 0,
   viewHeight: 0,
   currentTool: "smart",
+  inputMode: "draw",
+  tapMoveTarget: null,
   activeDrag: null,
   selectedIds: [],
   avatarAnimationStart: 0,

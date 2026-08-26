@@ -1,8 +1,8 @@
 // Entry point: wires DOM controls, the toolbar, keyboard shortcuts, and canvas
 // pointer events to the feature modules, then runs the initial load/connect.
 
-import { canvas, controls, state } from "./state.js";
-import { clearSelection, load } from "./shapes.js";
+import { controls, TOUCH_UI_QUERY } from "./state.js";
+import { load } from "./shapes.js";
 import { redraw, resize } from "./render.js";
 import { clearAll, redo, undo, updateHistoryButtons } from "./history.js";
 import { loadPlayerState, net } from "./net.js";
@@ -13,10 +13,12 @@ import {
   handleMovementKey,
   onPointerDown,
   onPointerMove,
+  syncInputModeUi,
   updateMovementHint
 } from "./input.js";
 import { avatarEditor } from "./avatar-editor.js";
 import { rooms } from "./rooms.js";
+import { bindPointerGestures, selectTool } from "./tool-wheel.js";
 import { bindGalleryEditor, gallery } from "./gallery.js";
 import { galleryEditor } from "./gallery-editor.js";
 
@@ -30,22 +32,16 @@ function refreshControlLabels() {
 
 document.querySelectorAll(".tool").forEach((button) => {
   button.addEventListener("click", () => {
-    state.currentTool = button.dataset.tool;
-    if (state.currentTool === "smart") {
-      clearSelection();
-    }
-    document.body.classList.toggle("hand-mode", state.currentTool === "hand");
-    document.body.classList.toggle("text-mode", state.currentTool === "text");
-    document.body.classList.toggle("select-mode", state.currentTool === "select");
-    document.body.classList.toggle("scale-mode", state.currentTool === "scale");
-    document.body.classList.toggle("rotate-mode", state.currentTool === "rotate");
-
-    document.querySelectorAll(".tool").forEach((b) => {
-      b.classList.toggle("active", b === button);
-    });
-
-    redraw();
+    selectTool(button.dataset.tool);
   });
+});
+
+bindPointerGestures({
+  onDown: onPointerDown,
+  onMove: onPointerMove,
+  onUp: finishPointer,
+  onCancel: cancelPointer,
+  onLost: finishLostPointerCapture
 });
 
 [
@@ -110,13 +106,17 @@ document.addEventListener("keyup", (event) => {
   handleMovementKey(event, false);
 });
 
-canvas.addEventListener("pointerdown", onPointerDown);
-canvas.addEventListener("pointermove", onPointerMove);
-canvas.addEventListener("pointerup", finishPointer);
-canvas.addEventListener("pointercancel", cancelPointer);
-canvas.addEventListener("lostpointercapture", finishLostPointerCapture);
-
 window.addEventListener("resize", resize);
+window.visualViewport?.addEventListener("resize", resize);
+if (typeof window.matchMedia === "function") {
+  const touchUi = window.matchMedia(TOUCH_UI_QUERY);
+  const onTouchUiChange = () => syncInputModeUi();
+  if (typeof touchUi.addEventListener === "function") {
+    touchUi.addEventListener("change", onTouchUiChange);
+  } else if (typeof touchUi.addListener === "function") {
+    touchUi.addListener(onTouchUiChange);
+  }
+}
 
 if (document.fonts && document.fonts.load) {
   document.fonts.load("28px Excalifont")
@@ -125,6 +125,7 @@ if (document.fonts && document.fonts.load) {
 }
 
 refreshControlLabels();
+syncInputModeUi();
 load();
 loadPlayerState();
 updateMovementHint();

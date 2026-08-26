@@ -4,7 +4,7 @@
 // space) so the user can keep drawing/moving while one or more imaginings are in
 // flight. Each finished imagining becomes a single "group" shape.
 
-import { ctx, newId, newSeed, state } from "./state.js";
+import { ctx, chromeBottomInset, newId, newSeed, state } from "./state.js";
 import { cameraOffset, mergeBoxBounds, worldToScreen } from "./geometry.js";
 import { buildDrawable, currentOptions, save, serializeShape, shapeBounds } from "./shapes.js";
 import { translateGeom } from "./transforms.js";
@@ -99,8 +99,9 @@ export function openImaginePrompt(point) {
   const wrap = document.createElement("div");
   wrap.className = "imagine-prompt";
   const screen = worldToScreen(point);
-  const left = Math.max(12, Math.min(screen.x, state.viewWidth - 360));
-  const top = Math.max(12, Math.min(screen.y, state.viewHeight - 60));
+  const promptWidth = Math.min(360, state.viewWidth - 24);
+  const left = Math.max(12, Math.min(screen.x, state.viewWidth - promptWidth - 12));
+  const top = Math.max(12, Math.min(screen.y, state.viewHeight - chromeBottomInset() - 56));
   wrap.style.left = `${Math.round(left)}px`;
   wrap.style.top = `${Math.round(top)}px`;
   wrap.style.bottom = "auto";

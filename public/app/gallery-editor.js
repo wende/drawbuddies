@@ -53,6 +53,7 @@ import {
   removeGalleryItem,
   upsertGalleryItem
 } from "./gallery.js";
+import { stopWalkMotion } from "./input.js";
 
 export const galleryEditor = (() => {
   const overlay = document.getElementById("galleryEditorOverlay");
@@ -715,6 +716,7 @@ export const galleryEditor = (() => {
     editorActiveDrag = null;
     discardMoveHistory = false;
     state.pressedMovementKeys.clear();
+    stopWalkMotion();
   }
 
   function commit() {
