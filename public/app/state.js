@@ -60,15 +60,19 @@ export function chromeBottomInset() {
   const viewportHeight = state.viewHeight || window.innerHeight;
   let top = viewportHeight;
   let found = false;
-  for (const el of [toolbarEl, modeSwitchEl]) {
-    if (!el || el.hidden) continue;
-    if (typeof getComputedStyle === "function" && getComputedStyle(el).display === "none") {
-      continue;
+  if (toolbarEl) {
+    const rect = toolbarEl.getBoundingClientRect();
+    if (rect.height > 0) {
+      found = true;
+      if (rect.top < top) top = rect.top;
     }
-    const rect = el.getBoundingClientRect();
-    if (rect.height <= 0) continue;
-    found = true;
-    if (rect.top < top) top = rect.top;
+  }
+  if (modeSwitchEl && isTouchUi()) {
+    const rect = modeSwitchEl.getBoundingClientRect();
+    if (rect.height > 0) {
+      found = true;
+      if (rect.top < top) top = rect.top;
+    }
   }
   if (!found) return 0;
   return Math.round(viewportHeight - top + 10);

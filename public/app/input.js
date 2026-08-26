@@ -256,6 +256,8 @@ export function handleMovementKey(event, isDown) {
   event.preventDefault();
   if (isDown) {
     state.pressedMovementKeys.add(key);
+    if (key === "a") faceFromDelta(-1);
+    else if (key === "d") faceFromDelta(1);
     scheduleMovement();
   } else {
     state.pressedMovementKeys.delete(key);
