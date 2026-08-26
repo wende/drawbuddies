@@ -110,7 +110,6 @@ function hideMovementHint() {
 }
 
 export function syncInputModeUi() {
-  document.body.classList.toggle("touch-ui", isTouchUi());
   document.body.classList.toggle("player-move-mode", isPlayerMoveMode());
   if (modeSwitchEl) {
     modeSwitchEl.classList.toggle("active", isPlayerMoveMode());
@@ -118,19 +117,21 @@ export function syncInputModeUi() {
   }
 }
 
+export function stopWalkMotion() {
+  state.tapMoveTarget = null;
+  if (state.activeDrag && state.activeDrag.tool === "player-move") {
+    state.activeDrag = null;
+  }
+  if (movementFrameId !== null) {
+    cancelAnimationFrame(movementFrameId);
+    movementFrameId = null;
+  }
+  if (state.localPlayer.moving) stopMoving(true);
+}
+
 export function setInputMode(mode) {
   state.inputMode = mode === "move" ? "move" : "draw";
-  if (!isPlayerMoveMode()) {
-    state.tapMoveTarget = null;
-    if (state.activeDrag && state.activeDrag.tool === "player-move") {
-      state.activeDrag = null;
-    }
-    if (movementFrameId !== null) {
-      cancelAnimationFrame(movementFrameId);
-      movementFrameId = null;
-    }
-    if (state.localPlayer.moving) stopMoving(true);
-  }
+  if (!isPlayerMoveMode()) stopWalkMotion();
   syncInputModeUi();
   redraw();
 }
@@ -159,7 +160,6 @@ function setTapMoveTarget(point) {
   state.tapMoveTarget = { x: point.x, y: point.y };
   hideMovementHint();
   scheduleMovement();
-  redraw();
 }
 
 function broadcastPlayerMove(force = false) {

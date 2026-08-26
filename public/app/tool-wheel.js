@@ -437,6 +437,7 @@ function onTogglePointerUp(event) {
 
 function onTogglePointerCancel(event) {
   if (pointerId === null || event.pointerId !== pointerId) return;
+  const id = pointerId;
   pointerId = null;
   source = null;
   openedThisGesture = false;
@@ -444,6 +445,7 @@ function onTogglePointerCancel(event) {
   downSnapshot = null;
   clearLongPress();
   closeWheel();
+  releaseCaptures(id);
 }
 
 export function bindPointerGestures(handlers) {
@@ -460,7 +462,6 @@ export function bindPointerGestures(handlers) {
     modeSwitchEl.addEventListener("pointermove", onTogglePointerMove);
     modeSwitchEl.addEventListener("pointerup", onTogglePointerUp);
     modeSwitchEl.addEventListener("pointercancel", onTogglePointerCancel);
-    modeSwitchEl.setAttribute("aria-controls", "toolWheel");
     modeSwitchEl.addEventListener("contextmenu", (event) => event.preventDefault());
     modeSwitchEl.addEventListener("click", (event) => {
       // Pointer tap/long-press is handled by onTogglePointerDown/Up.
@@ -479,6 +480,12 @@ export function bindPointerGestures(handlers) {
   }
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !wheelOpen) return;
+    event.preventDefault();
+    hoverTool = null;
+    finishGesture(event);
+  }, true);
   window.addEventListener("resize", () => {
     if (wheelOpen) closeWheel();
   });

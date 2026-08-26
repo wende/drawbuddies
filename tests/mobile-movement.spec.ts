@@ -126,6 +126,19 @@ test.describe("mobile tap-to-move", () => {
     await expect(page.locator("body")).not.toHaveClass(/player-move-mode/);
   });
 
+  test("Escape dismisses the canvas tool wheel", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await page.mouse.move(200, 300);
+    await page.mouse.down();
+    await page.waitForTimeout(500);
+    await expect(page.locator("#toolWheel")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#toolWheel")).toBeHidden();
+    await page.mouse.up();
+    await expect(page.locator("body")).toHaveAttribute("data-tool", "smart");
+  });
+
   test("Space on the walk switch toggles walk mode", async ({ page }) => {
     await openMobileCanvas(page);
 

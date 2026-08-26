@@ -58,14 +58,20 @@ export function isTouchUi() {
 // Space occupied by the bottom toolbar (and the move/draw switch beside it).
 export function chromeBottomInset() {
   const viewportHeight = state.viewHeight || window.innerHeight;
-  let inset = 88;
-  if (toolbarEl) {
-    const rect = toolbarEl.getBoundingClientRect();
-    if (rect.height > 0) {
-      inset = Math.max(inset, Math.round(viewportHeight - rect.top + 10));
+  let top = viewportHeight;
+  let found = false;
+  for (const el of [toolbarEl, modeSwitchEl]) {
+    if (!el || el.hidden) continue;
+    if (typeof getComputedStyle === "function" && getComputedStyle(el).display === "none") {
+      continue;
     }
+    const rect = el.getBoundingClientRect();
+    if (rect.height <= 0) continue;
+    found = true;
+    if (rect.top < top) top = rect.top;
   }
-  return inset;
+  if (!found) return 0;
+  return Math.round(viewportHeight - top + 10);
 }
 
 export const gen = rough.generator();

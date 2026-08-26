@@ -52,6 +52,7 @@ import { smartShapeFromStroke } from "./smart-shapes.js";
 import { autosizeTextEditor } from "./text-editor.js";
 import { net } from "./net.js";
 import { redraw } from "./render.js";
+import { stopWalkMotion } from "./input.js";
 
 export const avatarEditor = (() => {
   const overlay = document.getElementById("avatarOverlay");
@@ -743,8 +744,7 @@ export const avatarEditor = (() => {
     overlay.hidden = true;
     editorActiveDrag = null;
     state.pressedMovementKeys.clear();
-    state.tapMoveTarget = null;
-    state.localPlayer.moving = false;
+    stopWalkMotion();
   }
 
   function commit() {
