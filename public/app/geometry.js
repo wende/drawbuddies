@@ -116,11 +116,17 @@ export function shapeRotation(shape) {
   return shape && shape.geom ? clampNumber(shape.geom.rotation, 0) : 0;
 }
 
+// Types that store rotation on geom.rotation. World AABB is
+// rotatedBoxBounds(shapeBaseBounds(shape), rotation). Hit-testing maps the
+// pointer through pointInShapeLocalSpace first, then uses the unrotated local
+// AABB from shapeBaseBounds. Do not bake rotation into shapeBaseBounds or it
+// will be applied twice.
 export function canStoreRotation(shape) {
   return (
     shape.type === "rectangle" ||
     shape.type === "ellipse" ||
     shape.type === "text" ||
+    shape.type === "path" ||
     shape.type === "group"
   );
 }

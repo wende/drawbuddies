@@ -20,6 +20,9 @@ export const MOVE_HINT_KEY = "drawbuddies:movement-hint:v1";
 
 export const AVATAR_FRAME = { width: 260, height: 360 };
 export const AVATAR_DISPLAY_HEIGHT = 132;
+export const GALLERY_STORAGE_KEY = "drawbuddies:gallery:v1";
+export const GALLERY_FRAME = { width: 320, height: 320 };
+export const GALLERY_SLOT = 88;
 export const PLAYER_SPEED = 220;
 
 export const canvas = document.getElementById("canvas");
@@ -34,6 +37,7 @@ export const controls = {
   strokeWidth: document.getElementById("strokeWidth"),
   strokeWidthValue: document.getElementById("strokeWidthValue"),
   avatarBtn: document.getElementById("avatarBtn"),
+  galleryBtn: document.getElementById("galleryBtn"),
   roomsBtn: document.getElementById("roomsBtn"),
   undoBtn: document.getElementById("undoBtn"),
   redoBtn: document.getElementById("redoBtn"),

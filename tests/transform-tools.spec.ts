@@ -89,6 +89,44 @@ test("rotate tool stores rectangle rotation without page errors", async ({ page 
   expect(errors).toEqual([]);
 });
 
+const ROTATED_PATH: ShapeData = {
+  id: "rotated-path",
+  type: "path",
+  geom: {
+    d: "M 200 200 H 320 V 240 H 200 Z",
+    ox: 0,
+    oy: 0,
+    scale: 1,
+    rotation: Math.PI / 2
+  },
+  options: {
+    stroke: "#222222",
+    fill: "#ffe08a",
+    fillStyle: "solid",
+    roughness: 1.5,
+    bowing: 1,
+    strokeWidth: 2,
+    seed: 125
+  }
+};
+
+test("marquee select uses rotated path bounds", async ({ page }) => {
+  await openWithShapes(page, [ROTATED_PATH]);
+
+  // Unrotated AABB is 200,200,120x40. After 90° rotation around the center the
+  // world box is 240,160,40x120. This marquee contains only the rotated box.
+  await page.click('button[data-tool="select"]');
+  await drag(page, [235, 155], [285, 285]);
+
+  await page.click('button[data-tool="scale"]');
+  await drag(page, [400, 400], [460, 400]);
+
+  await expect.poll(async () => {
+    const shape = await storedMainShape(page);
+    return Math.abs(Number(shape.geom.scale || 1) - 1);
+  }).toBeGreaterThan(0.05);
+});
+
 async function avatarPoint(page: Page, point: [number, number]) {
   const box = await page.locator("#avatarCanvas").boundingBox();
   if (!box) throw new Error("avatar canvas not visible");

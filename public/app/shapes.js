@@ -340,6 +340,11 @@ export function groupScale(geom) {
   return Number.isFinite(s) && s > 0 ? s : 1;
 }
 
+export function pathScale(geom) {
+  const s = geom && Number(geom.scale);
+  return Number.isFinite(s) && s > 0 ? s : 1;
+}
+
 export function groupBounds(shape) {
   const ext = mergeBoxBounds(groupChildren(shape).map(shapeBaseBounds));
   const ox = (shape.geom && shape.geom.ox) || 0;
@@ -442,11 +447,14 @@ export function shapeBaseBounds(shape) {
       shape._pathBounds = measurePathBounds(shape.geom.d, 0, 0);
       shape._pathBoundsD = shape.geom.d;
     }
+    const ox = shape.geom.ox || 0;
+    const oy = shape.geom.oy || 0;
+    const scale = pathScale(shape.geom);
     return {
-      x: round1(shape._pathBounds.x + (shape.geom.ox || 0)),
-      y: round1(shape._pathBounds.y + (shape.geom.oy || 0)),
-      width: shape._pathBounds.width,
-      height: shape._pathBounds.height
+      x: round1(shape._pathBounds.x * scale + ox),
+      y: round1(shape._pathBounds.y * scale + oy),
+      width: round1(shape._pathBounds.width * scale),
+      height: round1(shape._pathBounds.height * scale)
     };
   }
 
@@ -463,6 +471,8 @@ export function shapeBaseBounds(shape) {
   return normalizedBox(shape.geom);
 }
 
+// World-space AABB. For rotatable types this wraps the local AABB from
+// shapeBaseBounds; hit-testing uses the local box plus pointInShapeLocalSpace.
 export function shapeBounds(shape) {
   const box = shapeBaseBounds(shape);
   return canStoreRotation(shape) ? rotatedBoxBounds(box, shapeRotation(shape)) : box;
@@ -515,6 +525,7 @@ export function pointInShapeForDragging(shape, point) {
   }
 
   if (shape.type === "path") {
+    // localPoint is already un-rotated; keep using the local AABB here.
     return expandedBoxContains(shapeBaseBounds(shape), localPoint, padding);
   }
 
