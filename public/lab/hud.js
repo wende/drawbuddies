@@ -1,5 +1,5 @@
 import { clearSprites, resetStats, stats } from "../app/rough-skin.js";
-import { elements } from "./elements/index.js";
+import { widgets } from "./widgets/index.js";
 
 const sections = document.getElementById("sections");
 const nav = document.getElementById("nav");
@@ -15,55 +15,69 @@ const controls = {
   theme: document.getElementById("theme")
 };
 
-const DEFAULTS = { roughness: 1.4, bowing: 1.5, strokeWidth: 1.6, variants: 4 };
+const DEFAULTS = { roughness: 1.3, bowing: 1.2, strokeWidth: 1.5, variants: 4 };
 
-// Deterministic by default so Playwright screenshots diff cleanly. "Re-roll"
-// deliberately breaks determinism; it is for eyeballing, not for CI.
-let seedBase = 1000;
+let seedBase = 2400;
 let revision = 0;
 let teardowns = [];
+
+function isDark() {
+  return document.documentElement.classList.contains("dark");
+}
+
+function ink() {
+  return isDark() ? "#f0ead8" : "#241f18";
+}
+
+function panelFill() {
+  return isDark() ? "rgba(36, 33, 28, 0.92)" : "rgba(255, 250, 240, 0.92)";
+}
 
 function readOptions() {
   return {
     roughness: Number(controls.roughness.value),
     bowing: Number(controls.bowing.value),
     strokeWidth: Number(controls.strokeWidth.value),
-    stroke: "currentColor"
+    stroke: ink()
   };
 }
 
 function seedPool() {
   const count = Number(controls.variants.value);
-  return Array.from({ length: count }, (_, i) => seedBase + i * 17);
+  return Array.from({ length: count }, (_, i) => seedBase + i * 23);
 }
 
 function caption(text) {
   const el = document.createElement("span");
-  el.className = "lab-caption";
+  el.className = "hud-caption";
   el.textContent = text;
   return el;
 }
 
 function subhead(text) {
-  const el = document.createElement("h4");
-  el.className = "lab-subhead";
+  const el = document.createElement("h3");
+  el.className = "hud-subhead";
   el.textContent = text;
   return el;
 }
 
 function metric(text) {
   const el = document.createElement("p");
-  el.className = "lab-metric";
+  el.className = "hud-metric";
   el.textContent = text;
   return el;
 }
 
-function buildContext(opts, seeds) {
+function buildContext() {
   return {
-    opts,
-    seeds,
-    variant: (i) => seeds[i % seeds.length],
-    key: (name) => `sk-${name}-r${revision}`,
+    opts: readOptions(),
+    ink: ink(),
+    panelFill: panelFill(),
+    dark: isDark(),
+    seeds: seedPool(),
+    variant: (i) => seedPool()[i % seedPool().length],
+    key: (name) => `hud-${name}-r${revision}`,
+    reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
     caption,
     subhead,
     metric,
@@ -88,44 +102,43 @@ function render() {
   sections.replaceChildren();
   nav.replaceChildren();
 
-  const opts = readOptions();
-  const seeds = seedPool();
+  const ctx = buildContext();
 
-  for (const element of elements) {
+  for (const widget of widgets) {
     const section = document.createElement("section");
-    section.className = "lab-section";
-    section.id = `sec-${element.id}`;
+    section.className = "hud-section";
+    section.id = `sec-${widget.id}`;
 
     const header = document.createElement("header");
-    header.className = "lab-head";
+    header.className = "hud-head";
 
-    const title = document.createElement("h3");
-    title.textContent = element.title;
+    const title = document.createElement("h2");
+    title.textContent = widget.title;
 
     const tier = document.createElement("span");
-    tier.className = "lab-tier";
-    tier.textContent = element.tier;
+    tier.className = "hud-tier";
+    tier.textContent = widget.tier;
 
     header.append(title, tier);
     section.append(header);
 
-    if (element.note) {
+    if (widget.note) {
       const note = document.createElement("p");
-      note.className = "lab-note";
-      note.textContent = element.note;
+      note.className = "hud-note";
+      note.textContent = widget.note;
       section.append(note);
     }
 
     const body = document.createElement("div");
-    body.className = "lab-body";
+    body.className = "hud-body";
     section.append(body);
 
     try {
-      element.render(body, buildContext(opts, seeds));
+      widget.render(body, ctx);
     } catch (error) {
       const failure = document.createElement("pre");
-      failure.className = "lab-error";
-      failure.textContent = `${element.id} failed to render\n\n${error?.stack || error}`;
+      failure.className = "hud-error";
+      failure.textContent = `${widget.id} failed to render\n\n${error?.stack || error}`;
       body.append(failure);
       console.error(error);
     }
@@ -133,8 +146,8 @@ function render() {
     sections.append(section);
 
     const link = document.createElement("a");
-    link.href = `#sec-${element.id}`;
-    link.textContent = element.title;
+    link.href = `#sec-${widget.id}`;
+    link.textContent = widget.title;
     nav.append(link);
   }
 
@@ -163,7 +176,7 @@ controls.reroll.addEventListener("click", () => {
 });
 
 controls.reset.addEventListener("click", () => {
-  seedBase = 1000;
+  seedBase = 2400;
   for (const [name, value] of Object.entries(DEFAULTS)) controls[name].value = String(value);
   syncLabels();
   render();
@@ -171,11 +184,10 @@ controls.reset.addEventListener("click", () => {
 
 controls.theme.addEventListener("click", () => {
   const dark = document.documentElement.classList.toggle("dark");
-  controls.theme.textContent = dark ? "☀︎ Light" : "☾ Dark";
+  controls.theme.textContent = dark ? "Light" : "Dark";
+  // Tier 1 data-URIs cannot resolve currentColor, so ink has to be re-baked.
+  render();
 });
 
-// Rendered exactly once on load. Excalifont deliberately does not trigger a
-// re-render: the sprites are geometry-only, and DOM text reflows on its own when
-// the font arrives. Re-rendering here would reset the stats readout mid-interaction.
 syncLabels();
 render();

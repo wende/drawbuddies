@@ -4,7 +4,12 @@
   "installCommand": "",
   "buildCommand": "",
   "outputDirectory": "public",
+  "trailingSlash": true,
   "redirects": [
-    { "source": "/", "destination": "/lab/", "permanent": false }
+    { "source": "/", "destination": "/lab/", "permanent": false },
+    { "source": "/lab", "destination": "/lab/", "permanent": false },
+    { "source": "/gallery", "destination": "/lab/", "permanent": false },
+    { "source": "/gallery/", "destination": "/lab/", "permanent": false },
+    { "source": "/gallery/:path*", "destination": "/lab/:path*", "permanent": false }
   ]
 }

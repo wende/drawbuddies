@@ -249,12 +249,13 @@ layout library — and expect to keep a hidden DOM input for text regardless.
   `window.rough` directly rather than importing `state.js`, so it loads without
   the app's canvas being present.
 - `public/lab/` is the widget lab: a static gallery for prototyping elements in
-  isolation, with live rough controls and a generation-count readout. Adding an
-  element is one module in `public/lab/elements/` plus one line in its
-  `index.js`. It is deployed per-branch to Vercel via `vercel.json` and needs no
-  Worker, so it runs anywhere static.
+  isolation (plus a composed board shell), with live rough controls and a
+  generation-count readout. Adding an element is one module in
+  `public/lab/widgets/` plus one line in its `index.js`. It is deployed
+  per-branch to Vercel via `vercel.json` and needs no Worker, so it runs
+  anywhere static.
 - `tests/widget-lab.spec.ts` locks the cost claims in: if anyone reintroduces
-  per-element generation, the inventory-grid assertion fails.
+  per-element generation, the loot-bag assertion fails.
 - Existing CSS to strip once skinning lands: the `border`, `background`, and
   `border-radius` declarations on `.toolbar`, `button`, `.hint`, and the avatar
   overlay in `public/index.html`.
