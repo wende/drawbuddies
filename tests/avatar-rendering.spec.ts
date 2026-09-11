@@ -55,6 +55,7 @@ test("avatar flips when walking left and returns when walking right", async ({ p
     )
     .toContain(-1);
   await page.keyboard.up("a");
+  await page.waitForTimeout(80);
 
   const leftScaleCalls = await page.evaluate(() => {
     return (window as typeof window & { __avatarScaleCalls?: number[] }).__avatarScaleCalls || [];
