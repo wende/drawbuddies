@@ -74,7 +74,9 @@ export function chromeBottomInset() {
       if (rect.top < top) top = rect.top;
     }
   }
-  if (!found) return 0;
+  // First frame before layout: keep touch UIs clear of the toolbar instead of
+  // reporting zero chrome.
+  if (!found) return isTouchUi() ? 62 : 0;
   return Math.round(viewportHeight - top + 10);
 }
 

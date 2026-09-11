@@ -131,7 +131,15 @@ export function stopWalkMotion() {
 
 export function setInputMode(mode) {
   state.inputMode = mode === "move" ? "move" : "draw";
-  if (!isPlayerMoveMode()) stopWalkMotion();
+  if (!isPlayerMoveMode()) {
+    const wasMoving = state.localPlayer.moving;
+    stopWalkMotion();
+    if (wasMoving) {
+      // stopWalkMotion already redrew the idle avatar via stopMoving.
+      syncInputModeUi();
+      return;
+    }
+  }
   syncInputModeUi();
   redraw();
 }
@@ -208,11 +216,12 @@ function updateMovement(timestamp) {
     if (dist <= 2) {
       state.tapMoveTarget = null;
     } else if (dist <= step) {
+      // Snap onto the target without the moving flag: the fall-through
+      // stopMoving(wasMoving) broadcasts and redraws the final position once.
       faceFromDelta(tx);
       state.localPlayer.x = round1(state.tapMoveTarget.x);
       state.localPlayer.y = round1(state.tapMoveTarget.y);
       state.tapMoveTarget = null;
-      moving = true;
     } else {
       moving = true;
       faceFromDelta(tx);
@@ -227,12 +236,7 @@ function updateMovement(timestamp) {
     hideMovementHint();
     broadcastPlayerMove();
     redraw();
-    if (keys.moving || state.tapMoveTarget) {
-      movementFrameId = requestAnimationFrame(updateMovement);
-      return;
-    }
-    // Final tap-to-move step snapped onto the target this frame.
-    stopMoving(true);
+    movementFrameId = requestAnimationFrame(updateMovement);
     return;
   }
 

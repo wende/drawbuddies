@@ -164,6 +164,16 @@ function drawPlayers() {
 
 function drawTapMoveTarget() {
   if (!state.tapMoveTarget) return;
+  // Arrived: the snap branch in updateMovement has already cleared the walk,
+  // so skip the marker for any redraw queued in the same tick.
+  if (
+    Math.hypot(
+      state.tapMoveTarget.x - state.localPlayer.x,
+      state.tapMoveTarget.y - state.localPlayer.y
+    ) <= 2
+  ) {
+    return;
+  }
   const point = worldToScreen(state.tapMoveTarget);
 
   ctx.save();

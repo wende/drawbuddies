@@ -452,9 +452,10 @@ export function bindPointerGestures(handlers) {
     modeSwitchEl.addEventListener("contextmenu", (event) => event.preventDefault());
     modeSwitchEl.addEventListener("click", (event) => {
       // Pointer tap/long-press is handled by onTogglePointerDown/Up.
-      // Keyboard Enter/Space synthesizes a click with detail 0; let keydown
-      // own that path so we do not double-toggle.
-      if (event.detail > 0 || event.pointerType) {
+      // Keyboard Enter/Space synthesizes a click with detail 0 (empty-string
+      // pointerType on older WebKit); let keydown own that path so we do not
+      // double-toggle.
+      if (event.detail > 0 || (event.pointerType && event.pointerType !== "")) {
         event.preventDefault();
         event.stopPropagation();
       }
