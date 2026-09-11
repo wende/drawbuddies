@@ -435,19 +435,6 @@ function onTogglePointerUp(event) {
   finishGesture(event);
 }
 
-function onTogglePointerCancel(event) {
-  if (pointerId === null || event.pointerId !== pointerId) return;
-  const id = pointerId;
-  pointerId = null;
-  source = null;
-  openedThisGesture = false;
-  toolStarted = false;
-  downSnapshot = null;
-  clearLongPress();
-  closeWheel();
-  releaseCaptures(id);
-}
-
 export function bindPointerGestures(handlers) {
   canvasHandlers = handlers;
   document.body.dataset.tool = state.currentTool;
@@ -461,7 +448,7 @@ export function bindPointerGestures(handlers) {
     modeSwitchEl.addEventListener("pointerdown", onTogglePointerDown);
     modeSwitchEl.addEventListener("pointermove", onTogglePointerMove);
     modeSwitchEl.addEventListener("pointerup", onTogglePointerUp);
-    modeSwitchEl.addEventListener("pointercancel", onTogglePointerCancel);
+    modeSwitchEl.addEventListener("pointercancel", onCanvasPointerCancel);
     modeSwitchEl.addEventListener("contextmenu", (event) => event.preventDefault());
     modeSwitchEl.addEventListener("click", (event) => {
       // Pointer tap/long-press is handled by onTogglePointerDown/Up.
