@@ -1,7 +1,7 @@
 // Entry point: wires DOM controls, the toolbar, keyboard shortcuts, and canvas
 // pointer events to the feature modules, then runs the initial load/connect.
 
-import { controls, TOUCH_UI_QUERY } from "./state.js";
+import { controls, state, TOUCH_UI_QUERY } from "./state.js";
 import { load } from "./shapes.js";
 import { redraw, resize } from "./render.js";
 import { clearAll, redo, undo, updateHistoryButtons } from "./history.js";
@@ -11,8 +11,10 @@ import {
   finishPointer,
   finishLostPointerCapture,
   handleMovementKey,
+  isPlayerMoveMode,
   onPointerDown,
   onPointerMove,
+  setInputMode,
   syncInputModeUi,
   updateMovementHint
 } from "./input.js";
@@ -110,7 +112,12 @@ window.addEventListener("resize", resize);
 window.visualViewport?.addEventListener("resize", resize);
 if (typeof window.matchMedia === "function") {
   const touchUi = window.matchMedia(TOUCH_UI_QUERY);
-  const onTouchUiChange = () => syncInputModeUi();
+  const onTouchUiChange = () => {
+    // Crossing the touch-UI boundary mid-walk would strand the avatar in a
+    // mode whose switch is gone; leave walk mode when touch UI goes away.
+    if (state.inputMode === "move" && !isPlayerMoveMode()) setInputMode("draw");
+    else syncInputModeUi();
+  };
   if (typeof touchUi.addEventListener === "function") {
     touchUi.addEventListener("change", onTouchUiChange);
   } else if (typeof touchUi.addListener === "function") {

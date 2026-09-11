@@ -566,6 +566,9 @@ function completePointer(event, { captureFinalPoint = true, releaseCapture = tru
     if (captureFinalPoint) {
       setTapMoveTarget(canvasPoint(event));
     } else {
+      // A system gesture cancel or lost capture mid-walk must stop the walk,
+      // not leave the avatar cruising to the last target.
+      stopWalkMotion();
       redraw();
     }
     return;

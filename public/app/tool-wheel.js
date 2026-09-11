@@ -84,7 +84,6 @@ function ensureWheel() {
   wheelEl.id = "toolWheel";
   wheelEl.className = "tool-wheel";
   wheelEl.hidden = true;
-  wheelEl.setAttribute("role", "menu");
   wheelEl.setAttribute("aria-label", "Drawing tools");
   document.body.append(wheelEl);
   return wheelEl;

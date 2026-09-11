@@ -166,6 +166,29 @@ test.describe("mobile tap-to-move", () => {
     expect(Math.abs((later.y ?? 0) - (stopped.y ?? 0))).toBeLessThan(2);
   });
 
+  test("pointercancel mid-walk stops the avatar", async ({ page }) => {
+    await openMobileCanvas(page);
+
+    await page.locator("#modeSwitch").click();
+    await page.mouse.move(200, 420);
+    await page.mouse.down();
+    await page.mouse.move(320, 300, { steps: 4 });
+
+    await page.evaluate(() => {
+      document.getElementById("canvas")!.dispatchEvent(
+        new PointerEvent("pointercancel", { pointerId: 1, bubbles: true })
+      );
+    });
+
+    await expect(page.locator("body")).toHaveClass(/player-move-mode/);
+
+    const stopped = await playerPoint(page);
+    await page.waitForTimeout(350);
+    const later = await playerPoint(page);
+    expect(Math.abs((later.x ?? 0) - (stopped.x ?? 0))).toBeLessThan(2);
+    expect(Math.abs((later.y ?? 0) - (stopped.y ?? 0))).toBeLessThan(2);
+  });
+
   test("long-pressing the walk switch still opens the tool wheel", async ({ page }) => {
     await openMobileCanvas(page);
 
